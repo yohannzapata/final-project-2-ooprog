@@ -3,13 +3,16 @@ package hms.util;
 import hms.exceptions.InvalidInputException;
 
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.Period;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.format.ResolverStyle;
+import java.util.EnumSet;
 import java.util.Locale;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
@@ -35,6 +38,8 @@ public final class Validator {
     private static final Pattern EMAIL = Pattern.compile(
             "^[A-Za-z0-9](?:[A-Za-z0-9._%+-]*[A-Za-z0-9])?@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*\\.[A-Za-z]{2,}$");
     private static final Pattern ADDRESS = Pattern.compile("^[\\p{L}0-9 .,#'\\-/()]+$");
+    private static final Pattern PRC_LICENSE = Pattern.compile("^\\d{7}$");
+    private static final Pattern SPECIALIZATION = Pattern.compile("^\\p{L}+(?:[ \\-&/,]+\\p{L}+)*$");
 
     private Validator() {
     }
@@ -208,6 +213,20 @@ public final class Validator {
         }
     }
 
+    // ---------------------------------------------------------------- government IDs
+
+    /** PRC license number of a physician (7 digits). */
+    public static String validateLicenseNumber(String value) throws InvalidInputException {
+        String license = requireNonEmpty(value, "PRC license number").replace(" ", "");
+        if (!PRC_LICENSE.matcher(license).matches()) {
+            throw new InvalidInputException("PRC license number must be exactly 7 digits.");
+        }
+        if (license.matches("^0+$")) {
+            throw new InvalidInputException("PRC license number is not valid.");
+        }
+        return license;
+    }
+
     // ---------------------------------------------------------------- numbers
 
     public static int parseInt(String value, String field) throws InvalidInputException {
@@ -293,7 +312,61 @@ public final class Validator {
         return date;
     }
 
+    /**
+     * Parses doctor schedule days such as "MON,WED,FRI", "Mon-Fri" or "TUE, THU, SAT".
+     */
+    public static Set<DayOfWeek> parseDays(String value) throws InvalidInputException {
+        String text = requireNonEmpty(value, "Available days").toUpperCase(Locale.ROOT).replace(" ", "");
+        Set<DayOfWeek> days = EnumSet.noneOf(DayOfWeek.class);
+        for (String part : text.split(",")) {
+            if (part.isEmpty()) {
+                throw new InvalidInputException("Available days has an empty entry. Use a format like MON,WED,FRI.");
+            }
+            if (part.contains("-")) {
+                String[] range = part.split("-");
+                if (range.length != 2) {
+                    throw new InvalidInputException("Invalid day range \"" + part + "\". Use a format like MON-FRI.");
+                }
+                DayOfWeek start = toDay(range[0]);
+                DayOfWeek end = toDay(range[1]);
+                if (end.getValue() < start.getValue()) {
+                    throw new InvalidInputException("Day range must go forward within the week (e.g. MON-FRI).");
+                }
+                for (int d = start.getValue(); d <= end.getValue(); d++) {
+                    days.add(DayOfWeek.of(d));
+                }
+            } else {
+                DayOfWeek day = toDay(part);
+                if (!days.add(day)) {
+                    throw new InvalidInputException(Format.day(day) + " was entered more than once.");
+                }
+            }
+        }
+        return days;
+    }
+
+    private static DayOfWeek toDay(String text) throws InvalidInputException {
+        for (DayOfWeek day : DayOfWeek.values()) {
+            String full = day.name();
+            if (text.equals(full) || (text.length() >= 3 && full.startsWith(text))) {
+                return day;
+            }
+        }
+        throw new InvalidInputException("\"" + text + "\" is not a valid day. Use MON, TUE, WED, THU, FRI, SAT or SUN.");
+    }
+
     // ---------------------------------------------------------------- hospital specific
+
+    public static String validateSpecialization(String value) throws InvalidInputException {
+        String spec = requireNonEmpty(value, "Specialization");
+        if (spec.length() < 3 || spec.length() > 50) {
+            throw new InvalidInputException("Specialization must be 3 to 50 characters long.");
+        }
+        if (!SPECIALIZATION.matcher(spec).matches()) {
+            throw new InvalidInputException("Specialization may only contain letters, spaces, hyphens, and \"&\".");
+        }
+        return spec.equals(spec.toLowerCase(Locale.ROOT)) ? toTitleCase(spec) : spec;
+    }
 
     public static boolean parseYesNo(String value) throws InvalidInputException {
         String answer = requireNonEmpty(value, "Answer").toUpperCase(Locale.ROOT);
