@@ -38,6 +38,8 @@ public final class Validator {
     private static final Pattern EMAIL = Pattern.compile(
             "^[A-Za-z0-9](?:[A-Za-z0-9._%+-]*[A-Za-z0-9])?@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*\\.[A-Za-z]{2,}$");
     private static final Pattern ADDRESS = Pattern.compile("^[\\p{L}0-9 .,#'\\-/()]+$");
+    private static final Pattern PWD_ID = Pattern.compile("^\\d{2}-\\d{4}-\\d{3}-\\d{7}$");
+    private static final Pattern SENIOR_ID = Pattern.compile("^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$");
     private static final Pattern PRC_LICENSE = Pattern.compile("^\\d{7}$");
     private static final Pattern SPECIALIZATION = Pattern.compile("^\\p{L}+(?:[ \\-&/,]+\\p{L}+)*$");
 
@@ -214,6 +216,37 @@ public final class Validator {
     }
 
     // ---------------------------------------------------------------- government IDs
+
+    /** PWD ID number issued by the LGU, format RR-PPMM-BBB-NNNNNNN. */
+    public static String validatePwdId(String value) throws InvalidInputException {
+        String id = requireNonEmpty(value, "PWD ID number").replace(" ", "");
+        if (!PWD_ID.matcher(id).matches()) {
+            throw new InvalidInputException("PWD ID number must follow the format RR-PPMM-BBB-NNNNNNN "
+                    + "(e.g. 13-7604-000-0001234).");
+        }
+        return id;
+    }
+
+    /** OSCA Senior Citizen ID. Formats differ per city, so only basic rules are checked. */
+    public static String validateSeniorId(String value) throws InvalidInputException {
+        String id = requireNonEmpty(value, "Senior Citizen ID number").replace(" ", "").toUpperCase(Locale.ROOT);
+        if (id.length() < 4 || id.length() > 20 || !SENIOR_ID.matcher(id).matches()
+                || !id.matches(".*\\d.*")) {
+            throw new InvalidInputException("Senior Citizen ID number must be 4 to 20 letters/numbers "
+                    + "(dashes allowed) and contain at least one number.");
+        }
+        return id;
+    }
+
+    /** PhilHealth Identification Number: 12 digits, stored as XX-XXXXXXXXX-X. */
+    public static String validatePhilHealthNumber(String value) throws InvalidInputException {
+        String raw = requireNonEmpty(value, "PhilHealth number");
+        String digits = raw.replaceAll("[ \\-]", "");
+        if (!digits.matches("^\\d{12}$")) {
+            throw new InvalidInputException("PhilHealth number must be 12 digits (e.g. 12-345678901-2).");
+        }
+        return digits.substring(0, 2) + "-" + digits.substring(2, 11) + "-" + digits.substring(11);
+    }
 
     /** PRC license number of a physician (7 digits). */
     public static String validateLicenseNumber(String value) throws InvalidInputException {
