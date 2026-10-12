@@ -41,6 +41,7 @@ public final class Validator {
     private static final Pattern PWD_ID = Pattern.compile("^\\d{2}-\\d{4}-\\d{3}-\\d{7}$");
     private static final Pattern SENIOR_ID = Pattern.compile("^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$");
     private static final Pattern PRC_LICENSE = Pattern.compile("^\\d{7}$");
+    private static final Pattern ROOM_NUMBER = Pattern.compile("^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)?$");
     private static final Pattern SPECIALIZATION = Pattern.compile("^\\p{L}+(?:[ \\-&/,]+\\p{L}+)*$");
 
     private Validator() {
@@ -389,6 +390,15 @@ public final class Validator {
     }
 
     // ---------------------------------------------------------------- hospital specific
+
+    public static String validateRoomNumber(String value) throws InvalidInputException {
+        String room = requireNonEmpty(value, "Room number").toUpperCase(Locale.ROOT);
+        if (room.length() > 10 || !ROOM_NUMBER.matcher(room).matches()) {
+            throw new InvalidInputException("Room number must be up to 10 letters/numbers with at most one dash "
+                    + "(e.g. 201 or ICU-01).");
+        }
+        return room;
+    }
 
     public static String validateSpecialization(String value) throws InvalidInputException {
         String spec = requireNonEmpty(value, "Specialization");
