@@ -68,6 +68,14 @@ public class AppointmentService {
                 throw new ScheduleConflictException(doctor.getDisplayName() + " is already booked on "
                         + Format.date(date) + " at " + Format.time(time) + ".");
             }
+            if (a.getPatientId().equals(patient.getId()) && a.getTime().equals(time)) {
+                throw new ScheduleConflictException(patient.getFullName() + " already has an appointment on "
+                        + Format.date(date) + " at " + Format.time(time) + " (" + a.getId() + ").");
+            }
+            if (a.getPatientId().equals(patient.getId()) && a.getDoctorId().equals(doctor.getId())) {
+                throw new ScheduleConflictException(patient.getFullName() + " already has an appointment with "
+                        + doctor.getDisplayName() + " on " + Format.date(date) + " (" + a.getId() + ").");
+            }
         }
     }
 
