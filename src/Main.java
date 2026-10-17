@@ -1,8 +1,10 @@
 import hms.data.HospitalData;
 import hms.exceptions.DuplicateRecordException;
+import hms.exceptions.InvalidInputException;
 import hms.exceptions.LoginFailedException;
 import hms.exceptions.OperationCancelledException;
 import hms.menus.PatientForm;
+import hms.menus.Prompts;
 import hms.models.Patient;
 import hms.models.User;
 import hms.services.AuthService;
@@ -63,6 +65,9 @@ public class Main {
             String password = InputHelper.readPassword("Password: ");
             try {
                 User user = AUTH.login(username, password);
+                if (user.isMustChangePassword() && !forcePasswordChange(user)) {
+                    return;
+                }
                 Format.success("Login successful. Welcome, " + user.getDisplayName() + "!");
                 user.showMenu(); // polymorphism: Admin, Doctor or Patient menu
                 Format.info("You have been logged out.");
@@ -73,6 +78,25 @@ public class Main {
             }
         }
         Format.error("Too many failed attempts. Returning to the main menu.");
+    }
+
+    /** Accounts created by an admin (and the default admin) must set their own password first. */
+    private static boolean forcePasswordChange(User user) {
+        Format.info("You are using a temporary password. Please set a new password to continue.");
+        Prompts.printPasswordRules();
+        while (true) {
+            try {
+                String newPassword = Prompts.readNewPassword(user.getUsername(), "New password");
+                AUTH.setNewPassword(user, newPassword, newPassword);
+                Format.success("Password updated.");
+                return true;
+            } catch (InvalidInputException e) {
+                Format.error(e.getMessage());
+            } catch (OperationCancelledException e) {
+                Format.info("Password not changed. You need to change it before using the system.");
+                return false;
+            }
+        }
     }
 
     private static void register() {
