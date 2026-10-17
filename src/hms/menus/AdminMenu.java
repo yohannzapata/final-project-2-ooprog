@@ -2,7 +2,13 @@ package hms.menus;
 
 import hms.exceptions.InvalidInputException;
 import hms.models.Admin;
+import hms.models.Admission;
+import hms.models.Appointment;
+import hms.models.Bill;
+import hms.models.Room;
 import hms.util.InputHelper;
+
+import java.time.LocalDate;
 
 /**
  * Main menu of the admin. Each option opens its own management menu.
@@ -18,6 +24,40 @@ public class AdminMenu extends Menu {
     @Override
     protected String getTitle() {
         return "ADMIN MENU";
+    }
+
+    @Override
+    protected void printSummary() {
+        int todayAppointments = 0;
+        for (Appointment a : data.getAppointments()) {
+            if (a.isScheduled() && a.getDate().equals(LocalDate.now())) {
+                todayAppointments++;
+            }
+        }
+        int availableRooms = 0;
+        for (Room r : data.getRooms()) {
+            if (r.isAvailable()) {
+                availableRooms++;
+            }
+        }
+        int admitted = 0;
+        for (Admission a : data.getAdmissions()) {
+            if (!a.isDischarged()) {
+                admitted++;
+            }
+        }
+        int unpaid = 0;
+        for (Bill b : data.getBills()) {
+            if (!b.isPaid()) {
+                unpaid++;
+            }
+        }
+        System.out.println("Logged in as " + admin.getFullName() + " (" + admin.getRole() + ")");
+        System.out.printf("Patients: %d | Doctors: %d | Today's appointments: %d%n",
+                data.getPatients().size(), data.getDoctors().size(), todayAppointments);
+        System.out.printf("Admitted: %d | Available rooms: %d of %d | Unpaid bills: %d%n",
+                admitted, availableRooms, data.getRooms().size(), unpaid);
+        System.out.println();
     }
 
     @Override
