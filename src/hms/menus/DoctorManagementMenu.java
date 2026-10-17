@@ -154,6 +154,20 @@ public class DoctorManagementMenu extends Menu {
         validateEndTime(newStart, newEnd);
         Set<DayOfWeek> newDays = days == null ? doctor.getAvailableDays() : days;
 
+        // Do not allow a schedule change that would leave booked patients outside the new clinic hours.
+        int affected = 0;
+        for (Appointment a : data.getAppointments()) {
+            if (a.isUpcoming() && a.getDoctorId().equals(doctor.getId())
+                    && (!newDays.contains(a.getDate().getDayOfWeek()) || a.getTime().isBefore(newStart)
+                    || a.getTime().plusMinutes(Appointment.SLOT_MINUTES).isAfter(newEnd))) {
+                affected++;
+            }
+        }
+        if (affected > 0) {
+            throw new InvalidInputException("The new schedule conflicts with " + affected
+                    + " upcoming appointment(s). Reschedule or cancel them first.");
+        }
+
         if (first != null) {
             doctor.setFirstName(first);
         }
