@@ -21,7 +21,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -43,6 +45,7 @@ public final class HospitalData {
     private static final String ROOMS_FILE = "rooms.txt";
     private static final String ADMISSIONS_FILE = "admissions.txt";
     private static final String BILLS_FILE = "bills.txt";
+    private static final String SEQUENCES_FILE = "id_sequences.txt";
 
     private static HospitalData instance;
 
@@ -54,6 +57,8 @@ public final class HospitalData {
     private final List<Room> rooms = new ArrayList<>();
     private final List<Admission> admissions = new ArrayList<>();
     private final List<Bill> bills = new ArrayList<>();
+    // Last number used per ID prefix, so IDs of deleted records are never given out again.
+    private final Map<String, Integer> lastIds = new HashMap<>();
 
     private HospitalData() {
     }
@@ -76,6 +81,7 @@ public final class HospitalData {
         loadFile(ROOMS_FILE, 4, Room::fromRecord, rooms);
         loadFile(ADMISSIONS_FILE, 7, Admission::fromRecord, admissions);
         loadFile(BILLS_FILE, 10, Bill::fromRecord, bills);
+        loadSequences();
 
         if (admins.isEmpty()) {
             Admin admin = new Admin(nextAdminId(), "System", "Administrator",
@@ -137,6 +143,8 @@ public final class HospitalData {
             writeFile(ROOMS_FILE, rooms, Room::toRecord);
             writeFile(ADMISSIONS_FILE, admissions, Admission::toRecord);
             writeFile(BILLS_FILE, bills, Bill::toRecord);
+            writeFile(SEQUENCES_FILE, new ArrayList<>(lastIds.entrySet()),
+                    e -> RecordFormat.join(e.getKey(), String.valueOf(e.getValue())));
             return true;
         } catch (IOException e) {
             System.out.println("[!] Could not save data: " + e.getMessage());
@@ -159,8 +167,21 @@ public final class HospitalData {
 
     // ---------------------------------------------------------------- IDs
 
-    private static String nextId(String prefix, int digits, List<String> existingIds) {
-        int max = 0;
+    private void loadSequences() {
+        lastIds.clear();
+        List<String[]> rows = new ArrayList<>();
+        loadFile(SEQUENCES_FILE, 2, f -> f, rows);
+        for (String[] row : rows) {
+            try {
+                lastIds.put(row[0], Integer.parseInt(row[1]));
+            } catch (NumberFormatException ignored) {
+                // the highest existing ID will be used instead
+            }
+        }
+    }
+
+    private String nextId(String prefix, int digits, List<String> existingIds) {
+        int max = lastIds.getOrDefault(prefix, 0);
         for (String id : existingIds) {
             if (id.startsWith(prefix)) {
                 try {
@@ -170,6 +191,7 @@ public final class HospitalData {
                 }
             }
         }
+        lastIds.put(prefix, max + 1);
         return prefix + String.format("%0" + digits + "d", max + 1);
     }
 
