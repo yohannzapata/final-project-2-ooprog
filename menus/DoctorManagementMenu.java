@@ -67,6 +67,8 @@ public class DoctorManagementMenu extends Menu {
 
     private void addDoctor() {
         String firstName = InputHelper.read("First name: ", s -> Validator.validateName(s, "First name"));
+        String middleName = InputHelper.read("Middle name (press Enter if none): ",
+                s -> Validator.validateOptionalName(s, "Middle name"));
         String lastName = InputHelper.read("Last name: ", s -> Validator.validateName(s, "Last name"));
         String license = InputHelper.read("PRC license number (7 digits): ", s -> checkUniqueLicense(
                 Validator.validateLicenseNumber(s), null));
@@ -85,6 +87,7 @@ public class DoctorManagementMenu extends Menu {
 
         Doctor doctor = new Doctor(data.nextDoctorId(), firstName, lastName, username, password, specialization,
                 license, contact, fee, days, start, end);
+        doctor.setMiddleName(middleName);
         doctor.setMustChangePassword(true);
         data.getDoctors().add(doctor);
         data.save();
@@ -135,6 +138,9 @@ public class DoctorManagementMenu extends Menu {
         System.out.println("Updating " + doctor.getDisplayName() + ". Press Enter to keep the current value.");
         String first = InputHelper.readOptional("First name [" + doctor.getFirstName() + "]: ",
                 s -> Validator.validateName(s, "First name"));
+        String middle = InputHelper.readOptional("Middle name [" + Format.orDash(doctor.getMiddleName())
+                + "] (type \"none\" to remove): ",
+                s -> s.trim().equalsIgnoreCase("none") ? "" : Validator.validateName(s, "Middle name"));
         String last = InputHelper.readOptional("Last name [" + doctor.getLastName() + "]: ",
                 s -> Validator.validateName(s, "Last name"));
         String spec = InputHelper.readOptional("Specialization [" + doctor.getSpecialization() + "]: ",
@@ -170,6 +176,9 @@ public class DoctorManagementMenu extends Menu {
 
         if (first != null) {
             doctor.setFirstName(first);
+        }
+        if (middle != null) {
+            doctor.setMiddleName(middle);
         }
         if (last != null) {
             doctor.setLastName(last);
@@ -229,7 +238,7 @@ public class DoctorManagementMenu extends Menu {
 
     public static void printDetails(Doctor d) {
         System.out.println("Doctor ID      : " + d.getId());
-        System.out.println("Name           : " + d.getDisplayName());
+        System.out.println("Name           : Dr. " + d.getCompleteName());
         System.out.println("Specialization : " + d.getSpecialization());
         System.out.println("PRC License    : " + d.getLicenseNumber());
         System.out.println("Mobile number  : " + d.getContactNumber());

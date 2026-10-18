@@ -45,6 +45,9 @@ public class Patient extends User {
         this.seniorCitizenId = f[12];
         this.pwdId = f[13];
         this.philHealthNumber = f[14];
+        if (f.length > 15) {
+            setMiddleName(f[15]); // older files have no middle name
+        }
     }
 
     @Override
@@ -81,7 +84,7 @@ public class Patient extends User {
         return RecordFormat.join(getId(), getFirstName(), getLastName(), getUsername(),
                 getPasswordHash(), getSalt(), String.valueOf(isMustChangePassword()),
                 birthdate.toString(), sex, contactNumber, email, address,
-                seniorCitizenId, pwdId, philHealthNumber);
+                seniorCitizenId, pwdId, philHealthNumber, getMiddleName());
     }
 
     public static Patient fromRecord(String[] f) {

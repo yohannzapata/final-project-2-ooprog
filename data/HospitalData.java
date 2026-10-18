@@ -73,9 +73,10 @@ public final class HospitalData {
     // ---------------------------------------------------------------- loading and saving
 
     public void load() {
-        loadFile(ADMINS_FILE, 7, Admin::fromRecord, admins);
-        loadFile(DOCTORS_FILE, 14, Doctor::fromRecord, doctors);
-        loadFile(PATIENTS_FILE, 15, Patient::fromRecord, patients);
+        // User files gained a middle name field; files saved before that have one field less.
+        loadFile(ADMINS_FILE, 7, 8, Admin::fromRecord, admins);
+        loadFile(DOCTORS_FILE, 14, 15, Doctor::fromRecord, doctors);
+        loadFile(PATIENTS_FILE, 15, 16, Patient::fromRecord, patients);
         loadFile(APPOINTMENTS_FILE, 8, Appointment::fromRecord, appointments);
         loadFile(RECORDS_FILE, 9, MedicalRecord::fromRecord, medicalRecords);
         loadFile(ROOMS_FILE, 4, Room::fromRecord, rooms);
@@ -96,6 +97,11 @@ public final class HospitalData {
     }
 
     private <T> void loadFile(String fileName, int fieldCount, Function<String[], T> parser, List<T> target) {
+        loadFile(fileName, fieldCount, fieldCount, parser, target);
+    }
+
+    private <T> void loadFile(String fileName, int minFields, int maxFields, Function<String[], T> parser,
+                              List<T> target) {
         Path file = DATA_DIR.resolve(fileName);
         target.clear();
         if (!Files.exists(file)) {
@@ -111,7 +117,7 @@ public final class HospitalData {
                     continue;
                 }
                 String[] fields = RecordFormat.split(line);
-                if (fields.length != fieldCount) {
+                if (fields.length < minFields || fields.length > maxFields) {
                     skipped++;
                     continue;
                 }

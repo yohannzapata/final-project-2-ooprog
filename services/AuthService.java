@@ -42,15 +42,18 @@ public class AuthService {
     /**
      * Prevents creating the same person twice (same first name, last name and birthdate),
      * like a hospital checking for an existing patient record before making a new one.
+     * Two people with different middle names are treated as different persons.
      */
-    public void checkDuplicatePatient(String firstName, String lastName, LocalDate birthdate, String excludeId)
-            throws DuplicateRecordException {
+    public void checkDuplicatePatient(String firstName, String middleName, String lastName, LocalDate birthdate,
+                                      String excludeId) throws DuplicateRecordException {
         for (Patient p : data.getPatients()) {
             if (p.getId().equals(excludeId)) {
                 continue;
             }
+            boolean middleMatches = p.getMiddleName().isEmpty() || middleName.isEmpty()
+                    || p.getMiddleName().equalsIgnoreCase(middleName);
             if (p.getFirstName().equalsIgnoreCase(firstName) && p.getLastName().equalsIgnoreCase(lastName)
-                    && p.getBirthdate().equals(birthdate)) {
+                    && middleMatches && p.getBirthdate().equals(birthdate)) {
                 throw new DuplicateRecordException("A patient record for " + p.getFullName() + " born on "
                         + birthdate + " already exists (" + p.getId() + ").");
             }
