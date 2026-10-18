@@ -24,8 +24,9 @@ public final class Validator {
 
     public static final DateTimeFormatter DATE_FORMAT =
             DateTimeFormatter.ofPattern("uuuu-MM-dd").withResolverStyle(ResolverStyle.STRICT);
+    // "H" accepts both 9:00 and 09:00; minutes must still be two digits.
     public static final DateTimeFormatter TIME_FORMAT =
-            DateTimeFormatter.ofPattern("HH:mm").withResolverStyle(ResolverStyle.STRICT);
+            DateTimeFormatter.ofPattern("H:mm").withResolverStyle(ResolverStyle.STRICT);
 
     public static final int MAX_AGE = 120;
     public static final int SENIOR_AGE = 60;
