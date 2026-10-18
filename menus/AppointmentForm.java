@@ -28,6 +28,7 @@ public final class AppointmentForm {
 
     public static void book(Patient patient) throws InvalidInputException, ScheduleConflictException {
         HospitalData data = HospitalData.getInstance();
+        SERVICE.checkNotAdmitted(patient);
         if (data.getDoctors().isEmpty()) {
             Format.info("There are no doctors in the system yet.");
             return;
