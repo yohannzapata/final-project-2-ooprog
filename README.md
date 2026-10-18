@@ -56,18 +56,21 @@ Type `back` at any prompt to cancel the current action.
 - **Login:** 3 failed attempts return to the main menu. Passwords are stored as salted SHA-256 hashes.
 - **Accounts:** usernames are 4–20 characters and unique; passwords need 8+ characters with an uppercase
   letter, a lowercase letter and a number, and must be typed twice.
-- **Patients:** names (letters, spaces, hyphens, apostrophes, periods), birthdate not in the future and age
-  0–120, PH mobile numbers (`09XXXXXXXXX`, `+63` accepted), optional email, Senior Citizen ID (60+ only),
-  PWD ID (`RR-PPMM-BBB-NNNNNNN`) and PhilHealth number (12 digits). The same person (name + birthdate)
-  cannot be registered twice.
+- **Patients:** first, optional middle and last name (letters, spaces, hyphens, apostrophes, periods),
+  birthdate not in the future and age 0–120, PH mobile numbers (`09XXXXXXXXX`, `+63` accepted), optional
+  email, Senior Citizen ID (60+ only), PWD ID (`RR-PPMM-BBB-NNNNNNN`) and PhilHealth number (12 digits).
+  The same person (name + birthdate) cannot be registered twice. Patients below 18 cannot create their
+  own account; the admin registers them.
 - **Doctors:** 7-digit PRC license (unique), consultation fee > 0, available days (e.g. `MON-FRI`) and
   clinic hours. A schedule change that would leave booked patients outside the new hours is rejected.
 - **Appointments:** 30-minute slots within the doctor's clinic days and hours, not in the past and at most
   90 days ahead. No double booking of a doctor, and a patient cannot have two appointments at the same time
-  or two with the same doctor on the same day. Only past appointments can be marked completed/no-show.
+  or two with the same doctor on the same day. Admitted patients cannot book until they are discharged.
+  Only past appointments can be marked completed/no-show, and past appointments can no longer be cancelled.
+  Times can be typed as `9:00` or `09:00`.
 - **Medical records:** one record per completed appointment, written by the doctor of that appointment.
-- **Rooms and admissions:** only available rooms can be used, one active admission per patient, discharge
-  date cannot be before the admission date. A same-day discharge is billed as 1 day.
+- **Rooms and admissions:** only available rooms can be used or deleted, one active admission per patient,
+  discharge date cannot be before the admission date. A same-day discharge is billed as 1 day.
 - **Billing:** consultation (fee at time of booking) or admission (daily rate × days). Regular, Senior
   Citizen (20%), PWD (20%) or PhilHealth (fixed deduction, not more than the bill). Only discounts the
   patient is eligible for are offered. Paid bills cannot be changed or deleted.
