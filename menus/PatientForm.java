@@ -18,6 +18,9 @@ import java.time.Period;
  */
 public final class PatientForm {
 
+    /** Age of majority in the Philippines; younger patients are registered by the admin. */
+    public static final int ADULT_AGE = 18;
+
     private PatientForm() {
     }
 
@@ -27,7 +30,7 @@ public final class PatientForm {
      * @param byAdmin true when an admin creates the record; the password given is then
      *                temporary and must be changed on first login
      */
-    public static Patient create(boolean byAdmin) throws DuplicateRecordException {
+    public static Patient create(boolean byAdmin) throws DuplicateRecordException, InvalidInputException {
         HospitalData data = HospitalData.getInstance();
         AuthService auth = new AuthService();
 
@@ -40,13 +43,18 @@ public final class PatientForm {
                 s -> Validator.validateBirthdate(Validator.parseDate(s, "Birthdate")));
         // Check early so the user does not fill in the whole form for nothing.
         auth.checkDuplicatePatient(firstName, middleName, lastName, birthdate, null);
+        int age = Period.between(birthdate, LocalDate.now()).getYears();
+        if (!byAdmin && age < ADULT_AGE) {
+            // Minors cannot give consent on their own, so a parent or guardian registers them at the hospital.
+            throw new InvalidInputException("Patients below " + ADULT_AGE + " cannot create their own account. "
+                    + "Please register at the admitting section with a parent or guardian.");
+        }
 
         String sex = InputHelper.read("Sex (M/F): ", Validator::validateSex);
         String contact = InputHelper.read("Mobile number (09XXXXXXXXX): ", Validator::validateContactNumber);
         String email = InputHelper.read("Email (optional, press Enter to skip): ", s -> Validator.validateEmail(s, false));
         String address = InputHelper.read("Address (street, barangay, city): ", Validator::validateAddress);
 
-        int age = Period.between(birthdate, LocalDate.now()).getYears();
         String seniorId = "";
         if (age >= Validator.SENIOR_AGE && InputHelper.readYesNo("Do you have a Senior Citizen ID?")) {
             seniorId = InputHelper.read("Senior Citizen ID number: ", Validator::validateSeniorId);
