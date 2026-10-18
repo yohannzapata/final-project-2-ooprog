@@ -3,6 +3,7 @@ package services;
 import data.HospitalData;
 import exceptions.InvalidInputException;
 import exceptions.ScheduleConflictException;
+import models.Admission;
 import models.Appointment;
 import models.AppointmentStatus;
 import models.Doctor;
@@ -25,6 +26,18 @@ public class AppointmentService {
     public static final int MAX_DAYS_AHEAD = 90;
 
     private final HospitalData data = HospitalData.getInstance();
+
+    /**
+     * An admitted patient is already under the care of the hospital, so outpatient
+     * consultations are only booked after discharge.
+     */
+    public void checkNotAdmitted(Patient patient) throws InvalidInputException {
+        Admission active = new AdmissionService().getActiveAdmission(patient.getId());
+        if (active != null) {
+            throw new InvalidInputException(patient.getFullName() + " is currently admitted in room "
+                    + active.getRoomNumber() + ". Appointments can be booked after discharge.");
+        }
+    }
 
     /** Checks the date only, so the user gets an error before being asked for the time. */
     public void validateDate(Doctor doctor, LocalDate date) throws InvalidInputException {
@@ -109,6 +122,7 @@ public class AppointmentService {
 
     public Appointment book(Patient patient, Doctor doctor, LocalDate date, LocalTime time, String reason)
             throws InvalidInputException, ScheduleConflictException {
+        checkNotAdmitted(patient);
         validateSlot(doctor, patient, date, time, null);
         Appointment appointment = new Appointment(data.nextAppointmentId(), patient.getId(), doctor.getId(),
                 date, time, reason, doctor.getConsultationFee());
