@@ -123,8 +123,9 @@ public class RoomManagementMenu extends Menu {
 
     private void deleteRoom() throws InvalidInputException {
         Room room = Prompts.select("Enter room number: ", data::findRoom);
-        if (!room.isAvailable() && room.getStatus() != Room.Status.MAINTENANCE) {
-            throw new InvalidInputException("Room " + room.getRoomNumber() + " is occupied and cannot be deleted.");
+        if (!room.isAvailable()) {
+            throw new InvalidInputException("Room " + room.getRoomNumber() + " is "
+                    + room.getStatus().getLabel().toLowerCase() + ". Only available rooms can be deleted.");
         }
         for (Admission a : data.getAdmissions()) {
             if (a.getRoomNumber().equals(room.getRoomNumber()) && !a.isDischarged()) {
