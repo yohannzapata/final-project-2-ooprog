@@ -33,11 +33,13 @@ public final class PatientForm {
 
         System.out.println("Personal information");
         String firstName = InputHelper.read("First name: ", s -> Validator.validateName(s, "First name"));
+        String middleName = InputHelper.read("Middle name (press Enter if none): ",
+                s -> Validator.validateOptionalName(s, "Middle name"));
         String lastName = InputHelper.read("Last name: ", s -> Validator.validateName(s, "Last name"));
         LocalDate birthdate = InputHelper.read("Birthdate (yyyy-MM-dd): ",
                 s -> Validator.validateBirthdate(Validator.parseDate(s, "Birthdate")));
         // Check early so the user does not fill in the whole form for nothing.
-        auth.checkDuplicatePatient(firstName, lastName, birthdate, null);
+        auth.checkDuplicatePatient(firstName, middleName, lastName, birthdate, null);
 
         String sex = InputHelper.read("Sex (M/F): ", Validator::validateSex);
         String contact = InputHelper.read("Mobile number (09XXXXXXXXX): ", Validator::validateContactNumber);
@@ -68,6 +70,7 @@ public final class PatientForm {
 
         Patient patient = new Patient(data.nextPatientId(), firstName, lastName, username, password,
                 birthdate, sex, contact, email, address);
+        patient.setMiddleName(middleName);
         patient.setSeniorCitizenId(seniorId);
         patient.setPwdId(pwdId);
         patient.setPhilHealthNumber(philHealth);
@@ -86,12 +89,15 @@ public final class PatientForm {
         System.out.println("Press Enter to keep the current value.");
 
         String newFirst = patient.getFirstName();
+        String newMiddle = patient.getMiddleName();
         String newLast = patient.getLastName();
         LocalDate newBirth = patient.getBirthdate();
         String newSex = patient.getSex();
         if (byAdmin) {
             String first = InputHelper.readOptional("First name [" + patient.getFirstName() + "]: ",
                     s -> Validator.validateName(s, "First name"));
+            String middle = InputHelper.readOptional("Middle name [" + Format.orDash(patient.getMiddleName())
+                    + "] (type \"none\" to remove): ", s -> isNone(s) ? "" : Validator.validateName(s, "Middle name"));
             String last = InputHelper.readOptional("Last name [" + patient.getLastName() + "]: ",
                     s -> Validator.validateName(s, "Last name"));
             LocalDate birth = InputHelper.readOptional("Birthdate [" + patient.getBirthdate() + "]: ",
@@ -99,10 +105,11 @@ public final class PatientForm {
             String sex = InputHelper.readOptional("Sex [" + patient.getSex() + "]: ", Validator::validateSex);
 
             newFirst = first == null ? newFirst : first;
+            newMiddle = middle == null ? newMiddle : middle;
             newLast = last == null ? newLast : last;
             newBirth = birth == null ? newBirth : birth;
             newSex = sex == null ? newSex : sex;
-            new AuthService().checkDuplicatePatient(newFirst, newLast, newBirth, patient.getId());
+            new AuthService().checkDuplicatePatient(newFirst, newMiddle, newLast, newBirth, patient.getId());
         }
         boolean seniorAge = Period.between(newBirth, LocalDate.now()).getYears() >= Validator.SENIOR_AGE;
 
@@ -130,6 +137,7 @@ public final class PatientForm {
 
         // Apply everything only after all inputs were accepted.
         patient.setFirstName(newFirst);
+        patient.setMiddleName(newMiddle);
         patient.setLastName(newLast);
         patient.setBirthdate(newBirth);
         patient.setSex(newSex);
@@ -176,7 +184,7 @@ public final class PatientForm {
 
     public static void printProfile(Patient p) {
         System.out.println("Patient ID     : " + p.getId());
-        System.out.println("Name           : " + p.getFullName());
+        System.out.println("Name           : " + p.getCompleteName());
         System.out.println("Birthdate      : " + Format.date(p.getBirthdate()) + " (" + p.getAge() + " years old)");
         System.out.println("Sex            : " + p.getSex());
         System.out.println("Mobile number  : " + p.getContactNumber());

@@ -51,6 +51,9 @@ public class Doctor extends User {
         }
         this.startTime = LocalTime.parse(f[12]);
         this.endTime = LocalTime.parse(f[13]);
+        if (f.length > 14) {
+            setMiddleName(f[14]); // older files have no middle name
+        }
     }
 
     @Override
@@ -84,7 +87,7 @@ public class Doctor extends User {
         return RecordFormat.join(getId(), getFirstName(), getLastName(), getUsername(),
                 getPasswordHash(), getSalt(), String.valueOf(isMustChangePassword()),
                 specialization, licenseNumber, contactNumber, consultationFee.toPlainString(),
-                days.toString(), startTime.toString(), endTime.toString());
+                days.toString(), startTime.toString(), endTime.toString(), getMiddleName());
     }
 
     public static Doctor fromRecord(String[] f) {

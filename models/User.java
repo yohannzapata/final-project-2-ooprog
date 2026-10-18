@@ -10,6 +10,7 @@ public abstract class User {
 
     private final String id;
     private String firstName;
+    private String middleName = "";
     private String lastName;
     private String username;
     private String passwordHash;
@@ -50,8 +51,17 @@ public abstract class User {
         this.passwordHash = PasswordUtil.hash(password, salt);
     }
 
+    /** Name with middle initial, e.g. "Juan S. Dela Cruz". */
     public String getFullName() {
-        return firstName + " " + lastName;
+        if (middleName.isEmpty()) {
+            return firstName + " " + lastName;
+        }
+        return firstName + " " + Character.toUpperCase(middleName.charAt(0)) + ". " + lastName;
+    }
+
+    /** Complete name for profiles and records, e.g. "Juan Santos Dela Cruz". */
+    public String getCompleteName() {
+        return middleName.isEmpty() ? firstName + " " + lastName : firstName + " " + middleName + " " + lastName;
     }
 
     /** Name shown in lists and headers; doctors override this to add "Dr.". */
@@ -69,6 +79,14 @@ public abstract class User {
 
     public void setFirstName(String firstName) {
         this.firstName = firstName;
+    }
+
+    public String getMiddleName() {
+        return middleName;
+    }
+
+    public void setMiddleName(String middleName) {
+        this.middleName = middleName == null ? "" : middleName;
     }
 
     public String getLastName() {

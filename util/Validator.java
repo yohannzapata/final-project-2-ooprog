@@ -91,6 +91,14 @@ public final class Validator {
         return name;
     }
 
+    /** For optional names like the middle name: empty input is allowed and returns "". */
+    public static String validateOptionalName(String value, String field) throws InvalidInputException {
+        if (value == null || value.trim().isEmpty()) {
+            return "";
+        }
+        return validateName(value, field);
+    }
+
     /** Capitalizes the first letter of each word, e.g. "juan dela cruz" becomes "Juan Dela Cruz". */
     private static String toTitleCase(String name) {
         StringBuilder sb = new StringBuilder(name.length());
