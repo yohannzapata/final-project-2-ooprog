@@ -172,6 +172,10 @@ public class DoctorMenu extends Menu {
     private void markNoShow() throws InvalidInputException {
         Appointment a = Prompts.select("Enter appointment ID: ", this::findOwnAppointment);
         appointments.printDetails(a);
+        if (!a.isScheduled() || a.isUpcoming()) {
+            // Let the service give the exact reason before asking for confirmation.
+            appointments.markNoShow(a);
+        }
         if (!InputHelper.confirm("Mark this patient as no-show?")) {
             Format.info("Nothing was changed.");
             return;
