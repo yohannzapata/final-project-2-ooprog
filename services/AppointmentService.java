@@ -130,6 +130,10 @@ public class AppointmentService {
 
     public void cancel(Appointment appointment) throws InvalidInputException {
         checkScheduled(appointment, "cancelled");
+        if (!appointment.getDateTime().isAfter(LocalDateTime.now())) {
+            throw new InvalidInputException("The time of appointment " + appointment.getId()
+                    + " has already passed. The doctor should mark it as completed or no-show instead.");
+        }
         appointment.setStatus(AppointmentStatus.CANCELLED);
         data.save();
     }

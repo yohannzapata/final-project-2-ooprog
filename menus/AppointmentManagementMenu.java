@@ -83,6 +83,10 @@ public class AppointmentManagementMenu extends Menu {
         if (!appointment.isScheduled()) {
             throw new InvalidInputException("Only scheduled appointments can be cancelled.");
         }
+        if (!appointment.isUpcoming()) {
+            throw new InvalidInputException("This appointment's time has already passed and can no longer be "
+                    + "cancelled. The doctor should mark it as completed or no-show.");
+        }
         if (!InputHelper.confirm("Cancel this appointment?")) {
             Format.info("The appointment was not cancelled.");
             return;
