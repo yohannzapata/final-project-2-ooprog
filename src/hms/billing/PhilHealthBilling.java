@@ -1,7 +1,5 @@
 package hms.billing;
 
-import hms.util.Format;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
@@ -30,7 +28,7 @@ public class PhilHealthBilling implements BillingStrategy {
 
     @Override
     public String getDescription() {
-        return "PhilHealth (less " + Format.money(deduction) + ")";
+        return "PhilHealth deduction";
     }
 
     public BigDecimal getDeduction() {
