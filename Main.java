@@ -109,6 +109,8 @@ public class Main {
         } catch (DuplicateRecordException e) {
             Format.error(e.getMessage());
             Format.info("If this is you, please log in or ask the admitting section to recover your account.");
+        } catch (InvalidInputException e) {
+            Format.error(e.getMessage());
         }
     }
 }

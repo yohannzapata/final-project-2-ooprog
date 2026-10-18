@@ -62,7 +62,7 @@ public class PatientManagementMenu extends Menu {
         }
     }
 
-    private void addPatient() throws DuplicateRecordException {
+    private void addPatient() throws DuplicateRecordException, InvalidInputException {
         Patient patient = PatientForm.create(true);
         Format.success("Patient " + patient.getFullName() + " added with ID " + patient.getId() + ".");
         Format.info("Give the username and temporary password to the patient. They must change it on first login.");
