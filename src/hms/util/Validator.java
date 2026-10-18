@@ -158,13 +158,21 @@ public final class Validator {
 
     // ---------------------------------------------------------------- contact details
 
-    /** Accepts 09XXXXXXXXX (spaces/dashes allowed) and returns it without spaces. */
+    /** Accepts 09XXXXXXXXX, +639XXXXXXXXX or 639XXXXXXXXX (spaces/dashes allowed) and returns 09XXXXXXXXX. */
     public static String validateContactNumber(String value) throws InvalidInputException {
         String raw = requireNonEmpty(value, "Contact number");
-        if (!raw.matches("^[0-9 ()\\-]+$")) {
+        if (!raw.matches("^[+0-9 ()\\-]+$")) {
             throw new InvalidInputException("Contact number must contain digits only.");
         }
         String digits = raw.replaceAll("[ ()\\-]", "");
+        if (digits.startsWith("+63")) {
+            digits = "0" + digits.substring(3);
+        } else if (digits.startsWith("63") && digits.length() == 12) {
+            digits = "0" + digits.substring(2);
+        }
+        if (digits.contains("+")) {
+            throw new InvalidInputException("Contact number has an invalid format.");
+        }
         if (!MOBILE.matcher(digits).matches()) {
             throw new InvalidInputException("Contact number must be 11 digits and start with 09 (e.g. 09171234567).");
         }
