@@ -117,6 +117,10 @@ public final class Validator {
         if (username.length() < 4 || username.length() > 20) {
             throw new InvalidInputException("Username must be 4 to 20 characters long.");
         }
+        // "back" is the word that cancels a prompt, so nobody could log in with it.
+        if (username.equalsIgnoreCase(InputHelper.CANCEL_WORD)) {
+            throw new InvalidInputException("\"" + InputHelper.CANCEL_WORD + "\" is reserved and cannot be used as a username.");
+        }
         if (!USERNAME.matcher(username).matches()) {
             throw new InvalidInputException("Username must start with a letter, end with a letter or number, "
                     + "and may only contain letters, numbers, periods and underscores.");
