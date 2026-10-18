@@ -167,8 +167,4 @@ public final class InputHelper {
         }
         return password;
     }
-
-    public static void pause() {
-        readLine("\nPress Enter to continue...");
-    }
 }
