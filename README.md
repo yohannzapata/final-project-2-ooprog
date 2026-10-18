@@ -15,20 +15,20 @@ Doctors and Patients.
 From the project folder:
 
 ```bash
-javac -d out $(find src -name "*.java")
+javac -d out $(find . -name "*.java")
 java -cp out Main
 ```
 
 On Windows (PowerShell):
 
 ```powershell
-javac -d out (Get-ChildItem -Recurse src -Filter *.java).FullName
+javac -d out (Get-ChildItem -Recurse -Filter *.java).FullName
 java -cp out Main
 ```
 
-You can also open the folder in IntelliJ IDEA or VS Code and run `src/Main.java`.
+You can also open the folder in IntelliJ IDEA or VS Code and run `Main.java`.
 
-Data is saved in the `data/` folder (created on first run) so records are kept between sessions.
+Data is saved in the `hospital_data/` folder (created on first run) so records are kept between sessions.
 
 ### Default account
 
@@ -87,16 +87,14 @@ Type `back` at any prompt to cancel the current action.
 ## Project structure
 
 ```
-src/
-├── Main.java                 main menu: login, register, exit
-└── hms/
-    ├── billing/              BillingStrategy and its implementations
-    ├── data/                 HospitalData (Singleton, file persistence)
-    ├── exceptions/           custom exceptions
-    ├── menus/                Admin, Doctor and Patient menus and forms
-    ├── models/               User, Admin, Doctor, Patient, Appointment, MedicalRecord, Room, Admission, Bill
-    ├── services/             login, appointment, admission and billing rules
-    └── util/                 Validator, InputHelper, formatting and file helpers
+├── Main.java             main menu: login, register, exit
+├── billing/              BillingStrategy and its implementations
+├── data/                 HospitalData (Singleton, file persistence)
+├── exceptions/           custom exceptions
+├── menus/                Admin, Doctor and Patient menus and forms
+├── models/               User, Admin, Doctor, Patient, Appointment, MedicalRecord, Room, Admission, Bill
+├── services/             login, appointment, admission and billing rules
+└── util/                 Validator, InputHelper, formatting and file helpers
 ```
 
 ## Limitations

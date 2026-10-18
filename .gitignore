@@ -4,7 +4,7 @@ bin/
 *.class
 
 # Runtime data
-data/
+hospital_data/
 
 # IDE
 .idea/
