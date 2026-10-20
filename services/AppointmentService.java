@@ -10,6 +10,7 @@ import models.Doctor;
 import models.Patient;
 import util.Format;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -96,16 +97,14 @@ public class AppointmentService {
     public List<LocalTime> getAvailableSlots(Doctor doctor, LocalDate date) {
         List<LocalTime> slots = new ArrayList<>();
         LocalDateTime now = LocalDateTime.now();
-        LocalTime time = doctor.getStartTime();
-        while (!time.plusMinutes(Appointment.SLOT_MINUTES).isAfter(doctor.getEndTime())) {
+        LocalTime lastSlot = doctor.getEndTime().minusMinutes(Appointment.SLOT_MINUTES);
+        int slotCount = (int) (Duration.between(doctor.getStartTime(), lastSlot).toMinutes()
+                / Appointment.SLOT_MINUTES) + 1;
+        for (int i = 0; i < slotCount; i++) {
+            LocalTime time = doctor.getStartTime().plusMinutes((long) i * Appointment.SLOT_MINUTES);
             if (LocalDateTime.of(date, time).isAfter(now) && !isDoctorBooked(doctor, date, time)) {
                 slots.add(time);
             }
-            LocalTime next = time.plusMinutes(Appointment.SLOT_MINUTES);
-            if (next.isBefore(time)) {
-                break; // passed midnight
-            }
-            time = next;
         }
         return slots;
     }

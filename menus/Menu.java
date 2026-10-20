@@ -40,33 +40,40 @@ public abstract class Menu {
     }
 
     public void run() {
-        while (true) {
+        boolean isRunning = true;
+        while (isRunning) {
             Format.header(getTitle());
             printSummary();
             String[] options = getOptions();
-            for (int i = 0; i < options.length; i++) {
-                System.out.printf("%2d. %s%n", i + 1, options[i]);
-            }
-            System.out.printf("%2d. %s%n", 0, getExitLabel());
-            System.out.println("Tip: type \"" + InputHelper.CANCEL_WORD + "\" at any prompt to cancel.");
+            printOptions(options);
             int choice = InputHelper.readMenuChoice(0, options.length);
             if (choice == 0) {
-                if (onExit()) {
-                    return;
-                }
-                continue;
+                isRunning = !onExit();
+            } else {
+                runOption(options, choice);
             }
-            Format.subHeader(options[choice - 1]);
-            try {
-                handle(choice);
-            } catch (OperationCancelledException e) {
-                Format.info("Cancelled. Nothing was changed.");
-            } catch (InvalidInputException | RecordNotFoundException | DuplicateRecordException
-                     | ScheduleConflictException | RoomNotAvailableException e) {
-                Format.error(e.getMessage());
-            } catch (IllegalArgumentException | IllegalStateException e) {
-                Format.error(e.getMessage());
-            }
+        }
+    }
+
+    private void printOptions(String[] options) {
+        for (int i = 0; i < options.length; i++) {
+            System.out.printf("%2d. %s%n", i + 1, options[i]);
+        }
+        System.out.printf("%2d. %s%n", 0, getExitLabel());
+        System.out.println("Tip: type \"" + InputHelper.CANCEL_WORD + "\" at any prompt to cancel.");
+    }
+
+    private void runOption(String[] options, int choice) {
+        Format.subHeader(options[choice - 1]);
+        try {
+            handle(choice);
+        } catch (OperationCancelledException e) {
+            Format.info("Cancelled. Nothing was changed.");
+        } catch (InvalidInputException | RecordNotFoundException | DuplicateRecordException
+                 | ScheduleConflictException | RoomNotAvailableException e) {
+            Format.error(e.getMessage());
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            Format.error(e.getMessage());
         }
     }
 }
