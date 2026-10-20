@@ -60,6 +60,17 @@ public class AuthService {
         }
     }
 
+    /**
+     * Admin reset for a doctor or patient who forgot their password. The new password is temporary,
+     * so the user has to choose their own at the next login, like a newly created account.
+     */
+    public void resetPassword(User user, String temporaryPassword) throws InvalidInputException {
+        Validator.validatePassword(temporaryPassword, user.getUsername());
+        user.setPassword(temporaryPassword);
+        user.setMustChangePassword(true);
+        data.save();
+    }
+
     public void changePassword(User user, String currentPassword, String newPassword, String confirmPassword)
             throws InvalidInputException {
         if (!user.checkPassword(currentPassword)) {

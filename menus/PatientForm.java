@@ -3,6 +3,7 @@ package menus;
 import data.HospitalData;
 import exceptions.DuplicateRecordException;
 import exceptions.InvalidInputException;
+import exceptions.OperationCancelledException;
 import models.Patient;
 import services.AuthService;
 import util.Format;
@@ -24,51 +25,40 @@ public final class PatientForm {
     private PatientForm() {
     }
 
+    /** Details typed for a new patient, kept together so they can be reviewed before saving. */
+    private static final class Details {
+        private String firstName;
+        private String middleName;
+        private String lastName;
+        private LocalDate birthdate;
+        private String sex;
+        private String contact;
+        private String email;
+        private String address;
+        private String seniorId = "";
+        private String pwdId = "";
+        private String philHealth = "";
+    }
+
     /**
-     * Collects all details of a new patient and creates the account.
+     * Collects all details of a new patient, shows them for review, and creates the account.
      *
      * @param byAdmin true when an admin creates the record; the password given is then
      *                temporary and must be changed on first login
      */
     public static Patient create(boolean byAdmin) throws DuplicateRecordException, InvalidInputException {
         HospitalData data = HospitalData.getInstance();
-        AuthService auth = new AuthService();
 
-        System.out.println("Personal information");
-        String firstName = InputHelper.read("First name: ", s -> Validator.validateName(s, "First name"));
-        String middleName = InputHelper.read("Middle name (type \"none\" if none): ",
-                s -> InputHelper.isNone(s) ? "" : Validator.validateName(s, "Middle name"));
-        String lastName = InputHelper.read("Last name: ", s -> Validator.validateName(s, "Last name"));
-        LocalDate birthdate = InputHelper.read("Birthdate (yyyy-MM-dd): ",
-                s -> Validator.validateBirthdate(Validator.parseDate(s, "Birthdate")));
-        // Check early so the user does not fill in the whole form for nothing.
-        auth.checkDuplicatePatient(firstName, middleName, lastName, birthdate, null);
-        int age = Period.between(birthdate, LocalDate.now()).getYears();
-        if (!byAdmin && age < ADULT_AGE) {
-            // Minors cannot give consent on their own, so a parent or guardian registers them at the hospital.
-            throw new InvalidInputException("Patients below " + ADULT_AGE + " cannot create their own account. "
-                    + "Please register at the admitting section with a parent or guardian.");
-        }
-
-        String sex = InputHelper.read("Sex (M/F): ", Validator::validateSex);
-        String contact = InputHelper.read("Mobile number (09XXXXXXXXX): ", Validator::validateContactNumber);
-        String email = InputHelper.read("Email (type \"none\" if none): ",
-                s -> InputHelper.isNone(s) ? "" : Validator.validateEmail(s, true));
-        String address = InputHelper.read("Address (street, barangay, city): ", Validator::validateAddress);
-
-        String seniorId = "";
-        if (age >= Validator.SENIOR_AGE && InputHelper.readYesNo("Do you have a Senior Citizen ID?")) {
-            seniorId = InputHelper.read("Senior Citizen ID number: ", Validator::validateSeniorId);
-        }
-        String pwdId = "";
-        if (InputHelper.readYesNo("Do you have a PWD ID?")) {
-            pwdId = InputHelper.read("PWD ID number (RR-PPMM-BBB-NNNNNNN): ",
-                    s -> checkUniqueId(Validator.validatePwdId(s), null, true));
-        }
-        String philHealth = "";
-        if (InputHelper.readYesNo("Are you a PhilHealth member?")) {
-            philHealth = InputHelper.read("PhilHealth number (12 digits): ",
-                    s -> checkUniqueId(Validator.validatePhilHealthNumber(s), null, false));
+        // A typo found during the review is fixed by filling in the details again, before anything is saved.
+        Details d = null;
+        boolean isConfirmed = false;
+        while (!isConfirmed) {
+            d = readDetails(byAdmin);
+            printReview(d);
+            isConfirmed = InputHelper.readYesNo("Are these details correct?");
+            if (!isConfirmed && !InputHelper.readYesNo("Fill in the details again?")) {
+                throw new OperationCancelledException();
+            }
         }
 
         System.out.println();
@@ -77,16 +67,71 @@ public final class PatientForm {
         Prompts.printPasswordRules();
         String password = Prompts.readNewPassword(username, byAdmin ? "Temporary password" : "Password");
 
-        Patient patient = new Patient(data.nextPatientId(), firstName, lastName, username, password,
-                birthdate, sex, contact, email, address);
-        patient.setMiddleName(middleName);
-        patient.setSeniorCitizenId(seniorId);
-        patient.setPwdId(pwdId);
-        patient.setPhilHealthNumber(philHealth);
+        Patient patient = new Patient(data.nextPatientId(), d.firstName, d.lastName, username, password,
+                d.birthdate, d.sex, d.contact, d.email, d.address);
+        patient.setMiddleName(d.middleName);
+        patient.setSeniorCitizenId(d.seniorId);
+        patient.setPwdId(d.pwdId);
+        patient.setPhilHealthNumber(d.philHealth);
         patient.setMustChangePassword(byAdmin);
         data.getPatients().add(patient);
         data.save();
         return patient;
+    }
+
+    private static Details readDetails(boolean byAdmin) throws DuplicateRecordException, InvalidInputException {
+        Details d = new Details();
+        System.out.println("Personal information");
+        d.firstName = InputHelper.read("First name: ", s -> Validator.validateName(s, "First name"));
+        d.middleName = InputHelper.read("Middle name (type \"none\" if none): ",
+                s -> InputHelper.isNone(s) ? "" : Validator.validateName(s, "Middle name"));
+        d.lastName = InputHelper.read("Last name: ", s -> Validator.validateName(s, "Last name"));
+        d.birthdate = InputHelper.read("Birthdate (yyyy-MM-dd): ",
+                s -> Validator.validateBirthdate(Validator.parseDate(s, "Birthdate")));
+        // Check early so the user does not fill in the whole form for nothing.
+        new AuthService().checkDuplicatePatient(d.firstName, d.middleName, d.lastName, d.birthdate, null);
+        int age = Period.between(d.birthdate, LocalDate.now()).getYears();
+        if (!byAdmin && age < ADULT_AGE) {
+            // Minors cannot give consent on their own, so a parent or guardian registers them at the hospital.
+            throw new InvalidInputException("Patients below " + ADULT_AGE + " cannot create their own account. "
+                    + "Please register at the admitting section with a parent or guardian.");
+        }
+
+        d.sex = InputHelper.read("Sex (M/F): ", Validator::validateSex);
+        d.contact = InputHelper.read("Mobile number (09XXXXXXXXX): ", Validator::validateContactNumber);
+        d.email = InputHelper.read("Email (type \"none\" if none): ",
+                s -> InputHelper.isNone(s) ? "" : Validator.validateEmail(s, true));
+        d.address = InputHelper.read("Address (street, barangay, city): ", Validator::validateAddress);
+
+        if (age >= Validator.SENIOR_AGE && InputHelper.readYesNo("Do you have a Senior Citizen ID?")) {
+            d.seniorId = InputHelper.read("Senior Citizen ID number: ", Validator::validateSeniorId);
+        }
+        if (InputHelper.readYesNo("Do you have a PWD ID?")) {
+            d.pwdId = InputHelper.read("PWD ID number (RR-PPMM-BBB-NNNNNNN): ",
+                    s -> checkUniqueId(Validator.validatePwdId(s), null, true));
+        }
+        if (InputHelper.readYesNo("Are you a PhilHealth member?")) {
+            d.philHealth = InputHelper.read("PhilHealth number (12 digits): ",
+                    s -> checkUniqueId(Validator.validatePhilHealthNumber(s), null, false));
+        }
+        return d;
+    }
+
+    private static void printReview(Details d) {
+        String name = d.middleName.isEmpty() ? d.firstName + " " + d.lastName
+                : d.firstName + " " + d.middleName + " " + d.lastName;
+        System.out.println();
+        System.out.println("Please review the details:");
+        System.out.println("  Name           : " + name);
+        System.out.println("  Birthdate      : " + Format.date(d.birthdate) + " ("
+                + Period.between(d.birthdate, LocalDate.now()).getYears() + " years old)");
+        System.out.println("  Sex            : " + d.sex);
+        System.out.println("  Mobile number  : " + d.contact);
+        System.out.println("  Email          : " + Format.orDash(d.email));
+        System.out.println("  Address        : " + d.address);
+        System.out.println("  Senior Cit. ID : " + Format.orDash(d.seniorId));
+        System.out.println("  PWD ID         : " + Format.orDash(d.pwdId));
+        System.out.println("  PhilHealth No. : " + Format.orDash(d.philHealth));
     }
 
     /**
