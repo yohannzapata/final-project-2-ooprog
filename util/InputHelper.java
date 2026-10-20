@@ -3,7 +3,6 @@ package util;
 import exceptions.InvalidInputException;
 import exceptions.OperationCancelledException;
 
-import java.io.Console;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -164,36 +163,20 @@ public final class InputHelper {
     }
 
     /**
-     * Reads a password. In a real terminal nothing is shown while typing, so the prompt says so;
-     * otherwise people think the program stopped accepting input.
+     * Reads a password. It is shown as it is typed: a hidden prompt shows nothing at all in a terminal,
+     * which made people think the program had stopped accepting input, and IDE consoles cannot hide it anyway.
      */
     public static String readPassword(String prompt) {
-        String password = readPasswordOnce(prompt);
+        String password = readLine(prompt);
         boolean isEmpty = password.isEmpty();
         while (isEmpty) {
             Format.error("Password cannot be empty.");
-            password = readPasswordOnce(prompt);
+            password = readLine(prompt);
             isEmpty = password.isEmpty();
         }
         if (password.trim().equalsIgnoreCase(CANCEL_WORD)) {
             throw new OperationCancelledException();
         }
         return password;
-    }
-
-    private static String readPasswordOnce(String prompt) {
-        Console console = System.console();
-        if (console == null) {
-            return readLine(prompt);
-        }
-        String label = prompt.trim();
-        if (label.endsWith(":")) {
-            label = label.substring(0, label.length() - 1);
-        }
-        char[] chars = console.readPassword("%s", label + " (hidden as you type): ");
-        if (chars == null) {
-            System.exit(0);
-        }
-        return new String(chars);
     }
 }
