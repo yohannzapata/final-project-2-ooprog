@@ -42,22 +42,36 @@ public final class Format {
         return day.getDisplayName(TextStyle.SHORT, Locale.ENGLISH);
     }
 
+    /** Three or more days in a row are shown as a range: "Mon-Fri", "Mon, Wed, Fri", "Mon-Wed, Sat". */
     public static String days(Set<DayOfWeek> days) {
         StringJoiner joiner = new StringJoiner(", ");
-        for (DayOfWeek day : days) {
-            joiner.add(day(day));
+        DayOfWeek runStart = null;
+        DayOfWeek runEnd = null;
+        for (DayOfWeek day : DayOfWeek.values()) {
+            if (days.contains(day)) {
+                runStart = runStart == null ? day : runStart;
+                runEnd = day;
+            } else if (runStart != null) {
+                joiner.add(dayRun(runStart, runEnd));
+                runStart = null;
+            }
+        }
+        if (runStart != null) {
+            joiner.add(dayRun(runStart, runEnd));
         }
         return joiner.toString();
     }
 
-    public static String orDash(String value) {
-        return value == null || value.isEmpty() ? "-" : value;
+    private static String dayRun(DayOfWeek start, DayOfWeek end) {
+        int length = end.getValue() - start.getValue() + 1;
+        if (length == 1) {
+            return day(start);
+        }
+        return length == 2 ? day(start) + ", " + day(end) : day(start) + "-" + day(end);
     }
 
-    /** Cuts long text so table columns stay aligned. */
-    public static String fit(String value, int width) {
-        String text = orDash(value);
-        return text.length() <= width ? text : text.substring(0, width - 3) + "...";
+    public static String orDash(String value) {
+        return value == null || value.isEmpty() ? "-" : value;
     }
 
     public static void header(String title) {
@@ -72,10 +86,6 @@ public final class Format {
     public static void subHeader(String title) {
         System.out.println();
         System.out.println("--- " + title + " ---");
-    }
-
-    public static void line(int width) {
-        System.out.println("-".repeat(width));
     }
 
     public static void success(String message) {

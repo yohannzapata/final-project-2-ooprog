@@ -8,6 +8,7 @@ import models.Patient;
 import services.AuthService;
 import util.Format;
 import util.InputHelper;
+import util.Table;
 import util.Validator;
 
 import java.time.LocalDate;
@@ -121,17 +122,18 @@ public final class PatientForm {
         String name = d.middleName.isEmpty() ? d.firstName + " " + d.lastName
                 : d.firstName + " " + d.middleName + " " + d.lastName;
         System.out.println();
-        System.out.println("Please review the details:");
-        System.out.println("  Name           : " + name);
-        System.out.println("  Birthdate      : " + Format.date(d.birthdate) + " ("
-                + Period.between(d.birthdate, LocalDate.now()).getYears() + " years old)");
-        System.out.println("  Sex            : " + d.sex);
-        System.out.println("  Mobile number  : " + d.contact);
-        System.out.println("  Email          : " + Format.orDash(d.email));
-        System.out.println("  Address        : " + d.address);
-        System.out.println("  Senior Cit. ID : " + Format.orDash(d.seniorId));
-        System.out.println("  PWD ID         : " + Format.orDash(d.pwdId));
-        System.out.println("  PhilHealth No. : " + Format.orDash(d.philHealth));
+        Table.details("PLEASE REVIEW THE NEW PATIENT")
+                .addRow("Name", name)
+                .addRow("Birthdate", Format.date(d.birthdate) + " ("
+                        + Period.between(d.birthdate, LocalDate.now()).getYears() + " years old)")
+                .addRow("Sex", d.sex)
+                .addRow("Mobile number", d.contact)
+                .addRow("Email", d.email)
+                .addRow("Address", d.address)
+                .addRow("Senior Cit. ID", d.seniorId)
+                .addRow("PWD ID", d.pwdId)
+                .addRow("PhilHealth No.", d.philHealth)
+                .print();
     }
 
     /**
@@ -241,16 +243,17 @@ public final class PatientForm {
     }
 
     public static void printProfile(Patient p) {
-        System.out.println("Patient ID     : " + p.getId());
-        System.out.println("Name           : " + p.getCompleteName());
-        System.out.println("Birthdate      : " + Format.date(p.getBirthdate()) + " (" + p.getAge() + " years old)");
-        System.out.println("Sex            : " + p.getSex());
-        System.out.println("Mobile number  : " + p.getContactNumber());
-        System.out.println("Email          : " + Format.orDash(p.getEmail()));
-        System.out.println("Address        : " + p.getAddress());
-        System.out.println("Senior Cit. ID : " + Format.orDash(p.getSeniorCitizenId()));
-        System.out.println("PWD ID         : " + Format.orDash(p.getPwdId()));
-        System.out.println("PhilHealth No. : " + Format.orDash(p.getPhilHealthNumber()));
-        System.out.println("Username       : " + p.getUsername());
+        Table.details("PATIENT " + p.getId())
+                .addRow("Name", p.getCompleteName())
+                .addRow("Birthdate", Format.date(p.getBirthdate()) + " (" + p.getAge() + " years old)")
+                .addRow("Sex", p.getSex())
+                .addRow("Mobile number", p.getContactNumber())
+                .addRow("Email", p.getEmail())
+                .addRow("Address", p.getAddress())
+                .addRow("Senior Cit. ID", p.getSeniorCitizenId())
+                .addRow("PWD ID", p.getPwdId())
+                .addRow("PhilHealth No.", p.getPhilHealthNumber())
+                .addRow("Username", p.getUsername())
+                .print();
     }
 }

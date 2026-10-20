@@ -9,6 +9,7 @@ import models.AppointmentStatus;
 import models.Doctor;
 import models.Patient;
 import util.Format;
+import util.Table;
 
 import java.time.Duration;
 import java.time.LocalDate;
@@ -218,27 +219,50 @@ public class AppointmentService {
     }
 
     public void printTable(List<Appointment> list) {
+        printTable(list, true, true);
+    }
+
+    /** The patient or doctor column is left out when every row is that same person's appointment. */
+    public void printTable(List<Appointment> list, boolean showPatient, boolean showDoctor) {
         if (list.isEmpty()) {
             Format.info("No appointments found.");
             return;
         }
-        String fmt = "%-8s %-13s %-9s %-22s %-24s %-10s%n";
-        System.out.printf(fmt, "ID", "Date", "Time", "Patient", "Doctor", "Status");
-        Format.line(90);
-        for (Appointment a : list) {
-            System.out.printf(fmt, a.getId(), Format.date(a.getDate()), Format.time(a.getTime()),
-                    Format.fit(data.patientName(a.getPatientId()), 22),
-                    Format.fit(data.doctorName(a.getDoctorId()), 24), a.getStatus().getLabel());
+        List<String> headers = new ArrayList<>(List.of("ID", "Date", "Time"));
+        if (showPatient) {
+            headers.add("Patient");
         }
+        if (showDoctor) {
+            headers.add("Doctor");
+        }
+        headers.add("Status");
+        Table table = new Table(headers.toArray(new String[0]));
+        for (Appointment a : list) {
+            table.addRow(getRow(a, showPatient, showDoctor));
+        }
+        table.print();
+    }
+
+    private Object[] getRow(Appointment a, boolean showPatient, boolean showDoctor) {
+        List<Object> row = new ArrayList<>(List.of(a.getId(), Format.date(a.getDate()), Format.time(a.getTime())));
+        if (showPatient) {
+            row.add(data.patientName(a.getPatientId()));
+        }
+        if (showDoctor) {
+            row.add(data.doctorName(a.getDoctorId()));
+        }
+        row.add(a.getStatus().getLabel());
+        return row.toArray();
     }
 
     public void printDetails(Appointment a) {
-        System.out.println("Appointment ID : " + a.getId());
-        System.out.println("Patient        : " + data.patientName(a.getPatientId()) + " (" + a.getPatientId() + ")");
-        System.out.println("Doctor         : " + data.doctorName(a.getDoctorId()) + " (" + a.getDoctorId() + ")");
-        System.out.println("Schedule       : " + Format.date(a.getDate()) + ", " + Format.time(a.getTime()));
-        System.out.println("Reason         : " + Format.orDash(a.getReason()));
-        System.out.println("Fee            : " + Format.money(a.getConsultationFee()));
-        System.out.println("Status         : " + a.getStatus().getLabel());
+        Table.details("APPOINTMENT " + a.getId())
+                .addRow("Patient", data.patientName(a.getPatientId()) + " (" + a.getPatientId() + ")")
+                .addRow("Doctor", data.doctorName(a.getDoctorId()) + " (" + a.getDoctorId() + ")")
+                .addRow("Schedule", Format.date(a.getDate()) + ", " + Format.time(a.getTime()))
+                .addRow("Reason", a.getReason())
+                .addRow("Fee", Format.money(a.getConsultationFee()))
+                .addRow("Status", a.getStatus().getLabel())
+                .print();
     }
 }

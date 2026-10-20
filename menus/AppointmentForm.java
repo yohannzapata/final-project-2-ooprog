@@ -10,6 +10,7 @@ import models.Patient;
 import services.AppointmentService;
 import util.Format;
 import util.InputHelper;
+import util.Table;
 import util.Validator;
 
 import java.time.LocalDate;
@@ -42,11 +43,13 @@ public final class AppointmentForm {
         String reason = InputHelper.readText("Reason for visit (e.g. check-up, fever): ", "Reason", 100, true);
 
         System.out.println();
-        System.out.println("Please review the appointment:");
-        System.out.println("  Patient : " + patient.getFullName());
-        System.out.println("  Doctor  : " + doctor.getDisplayName() + " (" + doctor.getSpecialization() + ")");
-        System.out.println("  When    : " + Format.date(date) + " at " + Format.time(time));
-        System.out.println("  Fee     : " + Format.money(doctor.getConsultationFee()));
+        Table.details("PLEASE REVIEW THE APPOINTMENT")
+                .addRow("Patient", patient.getFullName())
+                .addRow("Doctor", doctor.getDisplayName() + " (" + doctor.getSpecialization() + ")")
+                .addRow("When", Format.date(date) + " at " + Format.time(time))
+                .addRow("Reason", reason)
+                .addRow("Fee", Format.money(doctor.getConsultationFee()))
+                .print();
         if (!InputHelper.readYesNo("Confirm booking?")) {
             Format.info("Booking cancelled.");
             return;
