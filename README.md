@@ -43,7 +43,6 @@ On the first run a default admin account is created:
 |----------|-------------|
 | `admin`  | `Admin1234` |
 
-Nothing is shown while you type a password (the prompt says "hidden as you type"); type it and press Enter.
 You will be asked to change the password after the first login. Accounts created by the admin
 (doctors and walk-in patients) also get a temporary password that must be changed on first login.
 If a doctor or patient forgets their password, the admin can give them a new temporary password with
