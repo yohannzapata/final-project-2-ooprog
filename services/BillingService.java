@@ -4,12 +4,14 @@ import billing.DiscountType;
 import data.HospitalData;
 import exceptions.DuplicateRecordException;
 import exceptions.InvalidInputException;
+import exceptions.RecordNotFoundException;
 import models.Admission;
 import models.Appointment;
 import models.AppointmentStatus;
 import models.Bill;
 import models.Patient;
 import util.Format;
+import util.Table;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -209,49 +211,43 @@ public class BillingService {
             Format.info("No bills found.");
             return;
         }
-        String fmt = "%-7s %-22s %-13s %-16s %-16s %-7s%n";
-        System.out.printf(fmt, "ID", "Patient", "For", "Discount", "Amount Due", "Status");
-        Format.line(86);
+        Table table = new Table("ID", "Patient", "For", "Discount", "Amount Due", "Status").alignRight(4);
         for (Bill b : list) {
-            System.out.printf(fmt, b.getId(), Format.fit(data.patientName(b.getPatientId()), 22),
-                    b.getSource().getLabel(), b.getDiscountType().getLabel(), Format.money(b.getTotalAmount()),
-                    b.getStatusLabel());
+            table.addRow(b.getId(), data.patientName(b.getPatientId()), b.getSource().getLabel(),
+                    b.getDiscountType().getLabel(), Format.money(b.getTotalAmount()), b.getStatusLabel());
         }
+        table.print();
     }
 
     /** Prints the bill like a simple statement of account. */
     public void printStatement(Bill b) {
-        Format.line(50);
-        System.out.println("STATEMENT OF ACCOUNT            Bill No. " + b.getId());
-        Format.line(50);
-        System.out.println("Patient     : " + data.patientName(b.getPatientId()) + " (" + b.getPatientId() + ")");
-        System.out.println("Date Issued : " + Format.date(b.getDateIssued()));
-        if (b.getSource() == Bill.Source.CONSULTATION) {
-            System.out.println("For         : Consultation (" + b.getSourceId() + ")");
-            try {
+        Table table = Table.details("STATEMENT OF ACCOUNT - BILL " + b.getId()).alignRight(1);
+        table.addRow("Patient", data.patientName(b.getPatientId()) + " (" + b.getPatientId() + ")");
+        table.addRow("Date issued", Format.date(b.getDateIssued()));
+        table.addRow("For", b.getSource().getLabel() + " (" + b.getSourceId() + ")");
+        addSourceDetails(table, b);
+        table.addSeparator();
+        table.addRow("Gross amount", Format.money(b.getGrossAmount()));
+        table.addRow("Less: " + b.getStrategy().getDescription(), "(" + Format.money(b.getDiscountAmount()) + ")");
+        table.addSeparator();
+        table.addRow("AMOUNT DUE", Format.money(b.getTotalAmount()));
+        table.addRow("Status", b.isPaid() ? "Paid on " + Format.date(b.getDatePaid()) : "Unpaid");
+        table.print();
+    }
+
+    /** The doctor or room line is optional; it is left out if the appointment or admission was removed. */
+    private void addSourceDetails(Table table, Bill b) {
+        try {
+            if (b.getSource() == Bill.Source.CONSULTATION) {
                 Appointment a = data.findAppointment(b.getSourceId());
-                System.out.println("              " + data.doctorName(a.getDoctorId()) + ", " + Format.date(a.getDate()));
-            } catch (Exception ignored) {
-                // appointment details are optional on the statement
-            }
-        } else {
-            System.out.println("For         : Admission (" + b.getSourceId() + ")");
-            try {
+                table.addRow("Doctor", data.doctorName(a.getDoctorId()) + ", " + Format.date(a.getDate()));
+            } else {
                 Admission a = data.findAdmission(b.getSourceId());
-                System.out.println("              Room " + a.getRoomNumber() + ", " + a.getDaysStayed() + " day(s) x "
+                table.addRow("Room", a.getRoomNumber() + ", " + a.getDaysStayed() + " day(s) x "
                         + Format.money(a.getDailyRate()));
-            } catch (Exception ignored) {
-                // admission details are optional on the statement
             }
+        } catch (RecordNotFoundException e) {
+            // nothing to add
         }
-        Format.line(50);
-        System.out.printf("%-28s %20s%n", "Gross Amount", Format.money(b.getGrossAmount()));
-        System.out.printf("%-28s %20s%n", "Less: " + b.getStrategy().getDescription(),
-                "(" + Format.money(b.getDiscountAmount()) + ")");
-        Format.line(50);
-        System.out.printf("%-28s %20s%n", "AMOUNT DUE", Format.money(b.getTotalAmount()));
-        System.out.println("Status      : " + b.getStatusLabel()
-                + (b.isPaid() ? " on " + Format.date(b.getDatePaid()) : ""));
-        Format.line(50);
     }
 }

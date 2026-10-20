@@ -9,6 +9,7 @@ import models.Bill;
 import models.Patient;
 import models.Room;
 import util.Format;
+import util.Table;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -177,24 +178,23 @@ public class AdmissionService {
             Format.info("No admissions found.");
             return;
         }
-        String fmt = "%-8s %-22s %-7s %-13s %-13s %-5s %-10s%n";
-        System.out.printf(fmt, "ID", "Patient", "Room", "Admitted", "Discharged", "Days", "Status");
-        Format.line(84);
+        Table table = new Table("ID", "Patient", "Room", "Admitted", "Discharged", "Days", "Status").alignRight(5);
         for (Admission a : list) {
-            System.out.printf(fmt, a.getId(), Format.fit(data.patientName(a.getPatientId()), 22), a.getRoomNumber(),
-                    Format.date(a.getAdmissionDate()), Format.date(a.getDischargeDate()), a.getDaysStayed(),
-                    a.getStatusLabel());
+            table.addRow(a.getId(), data.patientName(a.getPatientId()), a.getRoomNumber(), Format.date(a.getAdmissionDate()),
+                    Format.date(a.getDischargeDate()), a.getDaysStayed(), a.getStatusLabel());
         }
+        table.print();
     }
 
     public void printDetails(Admission a) {
-        System.out.println("Admission ID   : " + a.getId());
-        System.out.println("Patient        : " + data.patientName(a.getPatientId()) + " (" + a.getPatientId() + ")");
-        System.out.println("Room           : " + a.getRoomNumber() + " @ " + Format.money(a.getDailyRate()) + "/day");
-        System.out.println("Reason         : " + a.getReason());
-        System.out.println("Admitted       : " + Format.date(a.getAdmissionDate()));
-        System.out.println("Discharged     : " + Format.date(a.getDischargeDate()));
-        System.out.println("Days           : " + a.getDaysStayed() + (a.isDischarged() ? "" : " (so far)"));
-        System.out.println("Status         : " + a.getStatusLabel());
+        Table.details("ADMISSION " + a.getId())
+                .addRow("Patient", data.patientName(a.getPatientId()) + " (" + a.getPatientId() + ")")
+                .addRow("Room", a.getRoomNumber() + " at " + Format.money(a.getDailyRate()) + " a day")
+                .addRow("Reason", a.getReason())
+                .addRow("Admitted", Format.date(a.getAdmissionDate()))
+                .addRow("Discharged", Format.date(a.getDischargeDate()))
+                .addRow("Days", a.getDaysStayed() + (a.isDischarged() ? "" : " (so far)"))
+                .addRow("Status", a.getStatusLabel())
+                .print();
     }
 }

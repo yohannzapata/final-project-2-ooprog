@@ -6,6 +6,7 @@ import models.Appointment;
 import models.Doctor;
 import util.Format;
 import util.InputHelper;
+import util.Table;
 import util.Validator;
 
 import java.math.BigDecimal;
@@ -116,14 +117,14 @@ public class DoctorManagementMenu extends Menu {
         String name = d.middleName.isEmpty() ? d.firstName + " " + d.lastName
                 : d.firstName + " " + d.middleName + " " + d.lastName;
         System.out.println();
-        System.out.println("Please review the details:");
-        System.out.println("  Name           : Dr. " + name);
-        System.out.println("  PRC License    : " + d.license);
-        System.out.println("  Specialization : " + d.specialization);
-        System.out.println("  Mobile number  : " + d.contact);
-        System.out.println("  Consultation   : " + Format.money(d.fee));
-        System.out.println("  Schedule       : " + Format.days(d.days) + " " + Format.time(d.start) + " - "
-                + Format.time(d.end));
+        Table.details("PLEASE REVIEW THE NEW DOCTOR")
+                .addRow("Name", "Dr. " + name)
+                .addRow("PRC license", d.license)
+                .addRow("Specialization", d.specialization)
+                .addRow("Mobile number", d.contact)
+                .addRow("Consultation", Format.money(d.fee))
+                .addRow("Schedule", Format.days(d.days) + " " + Format.time(d.start) + " - " + Format.time(d.end))
+                .print();
     }
 
     /** Checked as soon as the start time is typed, so the user does not find out only after the end time. */
@@ -330,23 +331,23 @@ public class DoctorManagementMenu extends Menu {
             Format.info("No doctors found.");
             return;
         }
-        String fmt = "%-6s %-26s %-20s %-14s %-30s%n";
-        System.out.printf(fmt, "ID", "Name", "Specialization", "Fee", "Schedule");
-        Format.line(98);
+        Table table = new Table("ID", "Name", "Specialization", "Fee", "Schedule").alignRight(3).maxWidth(4, 40);
         for (Doctor d : doctors) {
-            System.out.printf(fmt, d.getId(), Format.fit(d.getDisplayName(), 26), Format.fit(d.getSpecialization(), 20),
-                    Format.money(d.getConsultationFee()), d.getScheduleText());
+            table.addRow(d.getId(), d.getDisplayName(), d.getSpecialization(), Format.money(d.getConsultationFee()),
+                    d.getScheduleText());
         }
+        table.print();
     }
 
     public static void printDetails(Doctor d) {
-        System.out.println("Doctor ID      : " + d.getId());
-        System.out.println("Name           : Dr. " + d.getCompleteName());
-        System.out.println("Specialization : " + d.getSpecialization());
-        System.out.println("PRC License    : " + d.getLicenseNumber());
-        System.out.println("Mobile number  : " + d.getContactNumber());
-        System.out.println("Consultation   : " + Format.money(d.getConsultationFee()));
-        System.out.println("Schedule       : " + d.getScheduleText());
-        System.out.println("Username       : " + d.getUsername());
+        Table.details("DOCTOR " + d.getId())
+                .addRow("Name", "Dr. " + d.getCompleteName())
+                .addRow("Specialization", d.getSpecialization())
+                .addRow("PRC license", d.getLicenseNumber())
+                .addRow("Mobile number", d.getContactNumber())
+                .addRow("Consultation", Format.money(d.getConsultationFee()))
+                .addRow("Schedule", d.getScheduleText())
+                .addRow("Username", d.getUsername())
+                .print();
     }
 }

@@ -12,6 +12,7 @@ import models.Patient;
 import services.AppointmentService;
 import util.Format;
 import util.InputHelper;
+import util.Table;
 import util.Validator;
 
 import java.time.LocalDate;
@@ -64,8 +65,8 @@ public class DoctorMenu extends Menu {
         List<Option> options = new ArrayList<>();
         addIf(options, !getTodayAppointments().isEmpty(), "View today's appointments", this::viewToday);
         addIf(options, !getUpcomingAppointments().isEmpty(), "View upcoming appointments",
-                () -> appointments.printTable(getUpcomingAppointments()));
-        addIf(options, hasAppointments, "View all my appointments", () -> appointments.printTable(getMyAppointments()));
+                () -> appointments.printTable(getUpcomingAppointments(), true, false));
+        addIf(options, hasAppointments, "View all my appointments", () -> appointments.printTable(getMyAppointments(), true, false));
         addIf(options, hasDue, "Mark appointment as completed", this::completeAppointment);
         addIf(options, hasDue, "Mark appointment as no-show", this::markNoShow);
         addIf(options, hasAppointments, "View my patients", () -> PatientManagementMenu.printTable(getMyPatients()));
@@ -138,7 +139,7 @@ public class DoctorMenu extends Menu {
     /** Asks for one of the due appointments; a future or finished one is asked again with the reason. */
     private Appointment selectDueAppointment() {
         System.out.println("Appointments past their time:");
-        appointments.printTable(getDueAppointments());
+        appointments.printTable(getDueAppointments(), true, false);
         return Prompts.select("Enter appointment ID: ", id -> {
             Appointment a = findOwnAppointment(id);
             if (!a.isScheduled()) {
@@ -155,7 +156,7 @@ public class DoctorMenu extends Menu {
 
     private void viewToday() {
         System.out.println("Appointments today, " + Format.date(LocalDate.now()) + ":");
-        appointments.printTable(getTodayAppointments());
+        appointments.printTable(getTodayAppointments(), true, false);
     }
 
     private void completeAppointment() throws InvalidInputException, DuplicateRecordException {
@@ -219,9 +220,9 @@ public class DoctorMenu extends Menu {
                 list.add(a);
             }
         }
-        appointments.printTable(list);
+        appointments.printTable(list, false, false);
         Format.subHeader("Medical records you wrote");
-        printRecords(getMyRecords(patient.getId()));
+        printRecords(getMyRecords(patient.getId()), false, false);
     }
 
     // ---------------------------------------------------------------- medical records
@@ -266,7 +267,7 @@ public class DoctorMenu extends Menu {
 
     private void addRecord() throws InvalidInputException, DuplicateRecordException {
         System.out.println("Completed appointments without a medical record:");
-        appointments.printTable(getAppointmentsWithoutRecord());
+        appointments.printTable(getAppointmentsWithoutRecord(), true, false);
         Appointment a = Prompts.select("Enter appointment ID: ", id -> {
             Appointment found = findOwnAppointment(id);
             if (found.getStatus() != AppointmentStatus.COMPLETED) {
@@ -308,14 +309,14 @@ public class DoctorMenu extends Menu {
 
     private void viewRecords() {
         List<MedicalRecord> records = getMyRecords(null);
-        printRecords(records);
+        printRecords(records, true, false);
         if (InputHelper.readYesNo("View full details of a record?")) {
             printRecord(Prompts.select("Enter record ID: ", this::findOwnRecord));
         }
     }
 
     private void updateRecord() {
-        printRecords(getMyRecords(null));
+        printRecords(getMyRecords(null), true, false);
         MedicalRecord r = Prompts.select("Enter record ID: ", this::findOwnRecord);
         printRecord(r);
         System.out.println("Type \"" + InputHelper.KEEP_WORD + "\" to keep the current value.");
@@ -343,7 +344,7 @@ public class DoctorMenu extends Menu {
     }
 
     private void deleteRecord() {
-        printRecords(getMyRecords(null));
+        printRecords(getMyRecords(null), true, false);
         MedicalRecord r = Prompts.select("Enter record ID: ", this::findOwnRecord);
         printRecord(r);
         if (!InputHelper.confirm("Delete medical record " + r.getId() + "?")) {
@@ -357,31 +358,50 @@ public class DoctorMenu extends Menu {
 
     // ---------------------------------------------------------------- printing
 
-    static void printRecords(List<MedicalRecord> records) {
+    /** The patient or doctor column is left out when every record belongs to that same person. */
+    static void printRecords(List<MedicalRecord> records, boolean showPatient, boolean showDoctor) {
         if (records.isEmpty()) {
             Format.info("No medical records found.");
             return;
         }
-        HospitalData data = HospitalData.getInstance();
-        String fmt = "%-7s %-13s %-22s %-24s %-30s%n";
-        System.out.printf(fmt, "ID", "Date", "Patient", "Doctor", "Diagnosis");
-        Format.line(98);
-        for (MedicalRecord r : records) {
-            System.out.printf(fmt, r.getId(), Format.date(r.getConsultationDate()),
-                    Format.fit(data.patientName(r.getPatientId()), 22), Format.fit(data.doctorName(r.getDoctorId()), 24),
-                    Format.fit(r.getDiagnosis(), 30));
+        List<String> headers = new ArrayList<>(List.of("ID", "Date"));
+        if (showPatient) {
+            headers.add("Patient");
         }
+        if (showDoctor) {
+            headers.add("Doctor");
+        }
+        headers.add("Diagnosis");
+        Table table = new Table(headers.toArray(new String[0]));
+        for (MedicalRecord r : records) {
+            table.addRow(getRecordRow(r, showPatient, showDoctor));
+        }
+        table.print();
+    }
+
+    private static Object[] getRecordRow(MedicalRecord r, boolean showPatient, boolean showDoctor) {
+        HospitalData data = HospitalData.getInstance();
+        List<Object> row = new ArrayList<>(List.of(r.getId(), Format.date(r.getConsultationDate())));
+        if (showPatient) {
+            row.add(data.patientName(r.getPatientId()));
+        }
+        if (showDoctor) {
+            row.add(data.doctorName(r.getDoctorId()));
+        }
+        row.add(r.getDiagnosis());
+        return row.toArray();
     }
 
     static void printRecord(MedicalRecord r) {
         HospitalData data = HospitalData.getInstance();
-        System.out.println("Record ID      : " + r.getId());
-        System.out.println("Patient        : " + data.patientName(r.getPatientId()) + " (" + r.getPatientId() + ")");
-        System.out.println("Doctor         : " + data.doctorName(r.getDoctorId()));
-        System.out.println("Consultation   : " + Format.date(r.getConsultationDate()) + " (" + r.getAppointmentId() + ")");
-        System.out.println("Diagnosis      : " + r.getDiagnosis());
-        System.out.println("Prescription   : " + r.getPrescription());
-        System.out.println("Notes          : " + Format.orDash(r.getNotes()));
-        System.out.println("Last updated   : " + Format.date(r.getLastUpdated()));
+        Table.details("MEDICAL RECORD " + r.getId())
+                .addRow("Patient", data.patientName(r.getPatientId()) + " (" + r.getPatientId() + ")")
+                .addRow("Doctor", data.doctorName(r.getDoctorId()))
+                .addRow("Consultation", Format.date(r.getConsultationDate()) + " (" + r.getAppointmentId() + ")")
+                .addRow("Diagnosis", r.getDiagnosis())
+                .addRow("Prescription", r.getPrescription())
+                .addRow("Notes", r.getNotes())
+                .addRow("Last updated", Format.date(r.getLastUpdated()))
+                .print();
     }
 }

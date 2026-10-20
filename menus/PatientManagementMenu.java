@@ -9,6 +9,7 @@ import models.MedicalRecord;
 import models.Patient;
 import util.Format;
 import util.InputHelper;
+import util.Table;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -147,22 +148,24 @@ public class PatientManagementMenu extends Menu {
             Format.info("No patients found.");
             return;
         }
-        String fmt = "%-6s %-26s %-4s %-7s %-12s %-16s%n";
-        System.out.printf(fmt, "ID", "Name", "Age", "Sex", "Mobile", "Discount IDs");
-        Format.line(76);
+        Table table = new Table("ID", "Name", "Age", "Sex", "Mobile", "Discount IDs").alignRight(2);
         for (Patient p : patients) {
-            List<String> ids = new ArrayList<>();
-            if (p.hasSeniorCitizenId()) {
-                ids.add("Senior");
-            }
-            if (p.hasPwdId()) {
-                ids.add("PWD");
-            }
-            if (p.hasPhilHealth()) {
-                ids.add("PhilHealth");
-            }
-            System.out.printf(fmt, p.getId(), Format.fit(p.getFullName(), 26), p.getAge(), p.getSex(),
-                    p.getContactNumber(), ids.isEmpty() ? "-" : String.join(", ", ids));
+            table.addRow(p.getId(), p.getFullName(), p.getAge(), p.getSex(), p.getContactNumber(), getDiscountIds(p));
         }
+        table.print();
+    }
+
+    private static String getDiscountIds(Patient p) {
+        List<String> ids = new ArrayList<>();
+        if (p.hasSeniorCitizenId()) {
+            ids.add("Senior");
+        }
+        if (p.hasPwdId()) {
+            ids.add("PWD");
+        }
+        if (p.hasPhilHealth()) {
+            ids.add("PhilHealth");
+        }
+        return String.join(", ", ids);
     }
 }

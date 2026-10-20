@@ -69,7 +69,7 @@ public class PatientMenu extends Menu {
         addIf(options, hasDoctors, "View available doctors", () -> DoctorManagementMenu.printTable(data.getDoctors()));
         addIf(options, hasDoctors && !isAdmitted, "Book an appointment", () -> AppointmentForm.book(patient));
         addIf(options, !getMyAppointments().isEmpty(), "View my appointments",
-                () -> appointments.printTable(getMyAppointments()));
+                () -> appointments.printTable(getMyAppointments(), false, true));
         addIf(options, hasUpcoming && !isAdmitted, "Reschedule an appointment", this::reschedule);
         addIf(options, hasUpcoming, "Cancel an appointment", this::cancel);
         addIf(options, !getMyRecords().isEmpty(), "View my medical records", this::viewRecords);
@@ -106,7 +106,7 @@ public class PatientMenu extends Menu {
 
     /** Asks for one of the patient's upcoming appointments; anything else is asked again with the reason. */
     private Appointment selectUpcoming() {
-        appointments.printTable(getUpcoming());
+        appointments.printTable(getUpcoming(), false, true);
         return Prompts.select("Enter appointment ID: ", id -> {
             Appointment a = data.findAppointment(id);
             if (!a.getPatientId().equals(patient.getId())) {
@@ -148,7 +148,7 @@ public class PatientMenu extends Menu {
     }
 
     private void viewRecords() {
-        DoctorMenu.printRecords(getMyRecords());
+        DoctorMenu.printRecords(getMyRecords(), false, true);
         if (InputHelper.readYesNo("View full details of a record?")) {
             MedicalRecord r = Prompts.select("Enter record ID: ", id -> {
                 MedicalRecord found = data.findMedicalRecord(id);

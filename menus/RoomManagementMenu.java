@@ -6,6 +6,7 @@ import models.Room;
 import services.AdmissionService;
 import util.Format;
 import util.InputHelper;
+import util.Table;
 import util.Validator;
 
 import java.math.BigDecimal;
@@ -176,12 +177,10 @@ public class RoomManagementMenu extends Menu {
             Format.info("No rooms found.");
             return;
         }
-        String fmt = "%-8s %-14s %-16s %-18s%n";
-        System.out.printf(fmt, "Room", "Type", "Daily Rate", "Status");
-        Format.line(58);
+        Table table = new Table("Room", "Type", "Daily Rate", "Status").alignRight(2);
         for (Room r : rooms) {
-            System.out.printf(fmt, r.getRoomNumber(), r.getType().getLabel(), Format.money(r.getDailyRate()),
-                    r.getStatus().getLabel());
+            table.addRow(r.getRoomNumber(), r.getType().getLabel(), Format.money(r.getDailyRate()), r.getStatus().getLabel());
         }
+        table.print();
     }
 }
