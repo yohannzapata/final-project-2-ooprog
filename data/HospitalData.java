@@ -72,6 +72,14 @@ public final class HospitalData {
 
     // ---------------------------------------------------------------- loading and saving
 
+    /**
+     * The folder is relative to where the program is started, so starting it from another folder
+     * (e.g. from an IDE instead of a terminal) uses different records. Main prints this path at startup.
+     */
+    public Path getDataFolder() {
+        return DATA_DIR.toAbsolutePath().normalize();
+    }
+
     public void load() {
         // User files gained a middle name field; files saved before that have one field less.
         loadFile(ADMINS_FILE, 7, 8, Admin::fromRecord, admins);

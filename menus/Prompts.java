@@ -209,6 +209,20 @@ public final class Prompts {
         Format.success("Password changed.");
     }
 
+    /** Admin action: gives a doctor or patient a temporary password they must change at their next login. */
+    public static void resetPassword(User user) throws InvalidInputException {
+        System.out.println("Username: " + user.getUsername());
+        if (!InputHelper.confirm("Reset the password of " + user.getDisplayName() + "?")) {
+            Format.info("Password not reset.");
+            return;
+        }
+        printPasswordRules();
+        String temporary = readNewPassword(user.getUsername(), "Temporary password");
+        new AuthService().resetPassword(user, temporary);
+        Format.success("Password reset. Give the temporary password to " + user.getDisplayName()
+                + "; it must be changed at the next login.");
+    }
+
     public static void printPasswordRules() {
         System.out.println("Password: at least 8 characters with an uppercase letter, a lowercase letter and a number.");
     }

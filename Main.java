@@ -24,6 +24,7 @@ public class Main {
     public static void main(String[] args) {
         HospitalData data = HospitalData.getInstance();
         data.load();
+        Format.info("Records are saved in " + data.getDataFolder());
 
         boolean isRunning = true;
         while (isRunning) {

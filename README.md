@@ -29,6 +29,8 @@ java -cp out Main
 You can also open the folder in IntelliJ IDEA or VS Code and run `Main.java`.
 
 Data is saved in the `hospital_data/` folder (created on first run) so records are kept between sessions.
+The folder is created where the program is started, and its full path is shown at startup; start the
+program from the project folder every time so it always uses the same records.
 
 Amounts are shown with the peso sign (₱). On Windows, run `chcp 65001` in the terminal first so the sign
 displays correctly.
@@ -44,12 +46,15 @@ On the first run a default admin account is created:
 Nothing is shown while you type a password (the prompt says "hidden as you type"); type it and press Enter.
 You will be asked to change the password after the first login. Accounts created by the admin
 (doctors and walk-in patients) also get a temporary password that must be changed on first login.
+If a doctor or patient forgets their password, the admin can give them a new temporary password with
+"Reset doctor password" or "Reset patient password". If the admin password itself is lost, delete
+`hospital_data/admins.txt`; the default admin account is created again on the next start.
 
 ## Features
 
 | Role    | What they can do |
 |---------|------------------|
-| Admin   | Manage patients, doctors, rooms, admissions and bills; view all appointments and book, reschedule or cancel them for patients; apply discounts; mark bills as paid |
+| Admin   | Manage patients, doctors, rooms, admissions and bills; reset doctor and patient passwords; view all appointments and book, reschedule or cancel them for patients; apply discounts; mark bills as paid |
 | Doctor  | View today's/upcoming appointments, mark them completed or no-show, view own patients, add/view/update/delete medical records |
 | Patient | Register, update profile, view doctors, book/reschedule/cancel own appointments, view own medical records, admissions and bills |
 
@@ -94,7 +99,8 @@ record, and `today` for today's date.
 - **Billing:** consultation (fee at time of booking) or admission (daily rate × days). Regular, Senior
   Citizen (20%), PWD (20%) or PhilHealth (fixed deduction, not more than the bill). Only discounts the
   patient is eligible for are offered. Paid bills cannot be changed or deleted.
-- **Confirmation:** delete, cancel and discharge actions ask `Are you sure? (Y/N)`.
+- **Confirmation:** delete, cancel, discharge and password reset actions ask `Are you sure? (Y/N)`.
+  New patients and doctors are shown for review before they are saved.
 
 ## OOP concepts and design patterns
 

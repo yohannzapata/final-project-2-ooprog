@@ -1,6 +1,7 @@
 package menus;
 
 import exceptions.InvalidInputException;
+import exceptions.OperationCancelledException;
 import models.Appointment;
 import models.Doctor;
 import util.Format;
@@ -45,23 +46,37 @@ public class DoctorManagementMenu extends Menu {
         addIf(options, hasDoctors, "Search doctors", this::search);
         addIf(options, hasDoctors, "View doctor details", this::viewDetails);
         addIf(options, hasDoctors, "Update doctor", this::updateDoctor);
+        addIf(options, hasDoctors, "Reset doctor password", () -> Prompts.resetPassword(Prompts.chooseDoctor()));
         addIf(options, !getDeletableDoctors().isEmpty(), "Delete doctor", this::deleteDoctor);
         return options;
     }
 
+    /** Details typed for a new doctor, kept together so they can be reviewed before saving. */
+    private static final class Details {
+        private String firstName;
+        private String middleName;
+        private String lastName;
+        private String license;
+        private String specialization;
+        private String contact;
+        private BigDecimal fee;
+        private Set<DayOfWeek> days;
+        private LocalTime start;
+        private LocalTime end;
+    }
+
     private void addDoctor() {
-        String firstName = InputHelper.read("First name: ", s -> Validator.validateName(s, "First name"));
-        String middleName = InputHelper.read("Middle name (type \"none\" if none): ",
-                s -> InputHelper.isNone(s) ? "" : Validator.validateName(s, "Middle name"));
-        String lastName = InputHelper.read("Last name: ", s -> Validator.validateName(s, "Last name"));
-        String license = InputHelper.read("PRC license number (7 digits): ", s -> checkUniqueLicense(
-                Validator.validateLicenseNumber(s), null));
-        String specialization = InputHelper.read("Specialization (e.g. Pediatrics): ", Validator::validateSpecialization);
-        String contact = InputHelper.read("Mobile number (09XXXXXXXXX): ", Validator::validateContactNumber);
-        BigDecimal fee = InputHelper.readAmount("Consultation fee (" + Format.PESO + "): ", "Consultation fee", MAX_FEE);
-        Set<DayOfWeek> days = InputHelper.read("Available days (e.g. MON,WED,FRI or MON-FRI): ", Validator::parseDays);
-        LocalTime start = InputHelper.read("Clinic start time (HH:mm): ", s -> validateStartTime(Validator.parseTime(s, "Start time")));
-        LocalTime end = InputHelper.read("Clinic end time (HH:mm): ", s -> validateEndTime(start, Validator.parseTime(s, "End time")));
+        // A typo found during the review is fixed by filling in the details again, before anything is saved.
+        Details d = null;
+        boolean isConfirmed = false;
+        while (!isConfirmed) {
+            d = readDetails();
+            printReview(d);
+            isConfirmed = InputHelper.readYesNo("Are these details correct?");
+            if (!isConfirmed && !InputHelper.readYesNo("Fill in the details again?")) {
+                throw new OperationCancelledException();
+            }
+        }
 
         System.out.println();
         System.out.println("Login account for the doctor");
@@ -69,14 +84,46 @@ public class DoctorManagementMenu extends Menu {
         Prompts.printPasswordRules();
         String password = Prompts.readNewPassword(username, "Temporary password");
 
-        Doctor doctor = new Doctor(data.nextDoctorId(), firstName, lastName, username, password, specialization,
-                license, contact, fee, days, start, end);
-        doctor.setMiddleName(middleName);
+        Doctor doctor = new Doctor(data.nextDoctorId(), d.firstName, d.lastName, username, password, d.specialization,
+                d.license, d.contact, d.fee, d.days, d.start, d.end);
+        doctor.setMiddleName(d.middleName);
         doctor.setMustChangePassword(true);
         data.getDoctors().add(doctor);
         data.save();
         Format.success(doctor.getDisplayName() + " added with ID " + doctor.getId() + ".");
         Format.info("The doctor must change the temporary password on first login.");
+    }
+
+    private Details readDetails() {
+        Details d = new Details();
+        d.firstName = InputHelper.read("First name: ", s -> Validator.validateName(s, "First name"));
+        d.middleName = InputHelper.read("Middle name (type \"none\" if none): ",
+                s -> InputHelper.isNone(s) ? "" : Validator.validateName(s, "Middle name"));
+        d.lastName = InputHelper.read("Last name: ", s -> Validator.validateName(s, "Last name"));
+        d.license = InputHelper.read("PRC license number (7 digits): ", s -> checkUniqueLicense(
+                Validator.validateLicenseNumber(s), null));
+        d.specialization = InputHelper.read("Specialization (e.g. Pediatrics): ", Validator::validateSpecialization);
+        d.contact = InputHelper.read("Mobile number (09XXXXXXXXX): ", Validator::validateContactNumber);
+        d.fee = InputHelper.readAmount("Consultation fee (" + Format.PESO + "): ", "Consultation fee", MAX_FEE);
+        d.days = InputHelper.read("Available days (e.g. MON,WED,FRI or MON-FRI): ", Validator::parseDays);
+        LocalTime start = InputHelper.read("Clinic start time (HH:mm): ", s -> validateStartTime(Validator.parseTime(s, "Start time")));
+        d.start = start;
+        d.end = InputHelper.read("Clinic end time (HH:mm): ", s -> validateEndTime(start, Validator.parseTime(s, "End time")));
+        return d;
+    }
+
+    private static void printReview(Details d) {
+        String name = d.middleName.isEmpty() ? d.firstName + " " + d.lastName
+                : d.firstName + " " + d.middleName + " " + d.lastName;
+        System.out.println();
+        System.out.println("Please review the details:");
+        System.out.println("  Name           : Dr. " + name);
+        System.out.println("  PRC License    : " + d.license);
+        System.out.println("  Specialization : " + d.specialization);
+        System.out.println("  Mobile number  : " + d.contact);
+        System.out.println("  Consultation   : " + Format.money(d.fee));
+        System.out.println("  Schedule       : " + Format.days(d.days) + " " + Format.time(d.start) + " - "
+                + Format.time(d.end));
     }
 
     /** Checked as soon as the start time is typed, so the user does not find out only after the end time. */

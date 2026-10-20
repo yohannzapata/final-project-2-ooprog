@@ -42,6 +42,7 @@ public class PatientManagementMenu extends Menu {
         addIf(options, hasPatients, "Search patients", this::search);
         addIf(options, hasPatients, "View patient details", this::viewDetails);
         addIf(options, hasPatients, "Update patient", this::updatePatient);
+        addIf(options, hasPatients, "Reset patient password", () -> Prompts.resetPassword(Prompts.choosePatient()));
         addIf(options, !getDeletablePatients().isEmpty(), "Delete patient", this::deletePatient);
         return options;
     }
