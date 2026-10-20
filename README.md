@@ -53,13 +53,19 @@ You will be asked to change the password after the first login. Accounts created
 | Doctor  | View today's/upcoming appointments, mark them completed or no-show, view own patients, add/view/update/delete medical records |
 | Patient | Register, update profile, view doctors, book/reschedule/cancel own appointments, view own medical records, admissions and bills |
 
+Menus only list what can be done right now: for example, "Delete patient" appears once there is a patient
+who can be deleted, and "Manage bills" appears once there is something to bill. Before asking for an ID, the
+program shows the matching records, and an ID that cannot be used (a paid bill, an occupied room, a patient
+who is already admitted) is asked again with the reason instead of ending the action.
+
 Type `back` at any prompt to cancel the current action. Empty input is never accepted: type `none` for an
 optional detail you don't have (middle name, email, prescription), `keep` to keep a value when updating a
 record, and `today` for today's date.
 
 ### Main rules and validations
 
-- **Login:** 3 failed attempts return to the main menu. Passwords are stored as salted SHA-256 hashes.
+- **Login:** 3 failed attempts return to the main menu. Changing a password also allows 3 tries of the
+  current password. Passwords are stored as salted SHA-256 hashes.
 - **Accounts:** usernames are 4–20 characters and unique; passwords need 8+ characters with an uppercase
   letter, a lowercase letter and a number, and must be typed twice.
 - **Numbers:** menu choices, amounts and room numbers cannot have leading zeros (`1`, not `01`).

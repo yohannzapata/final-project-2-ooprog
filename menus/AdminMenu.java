@@ -1,14 +1,18 @@
 package menus;
 
-import exceptions.InvalidInputException;
 import models.Admin;
 import models.Admission;
 import models.Appointment;
 import models.Bill;
 import models.Room;
+import services.AdmissionService;
+import services.BillingService;
+import util.Format;
 import util.InputHelper;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Main menu of the admin. Each option opens its own management menu.
@@ -16,6 +20,8 @@ import java.time.LocalDate;
 public class AdminMenu extends Menu {
 
     private final Admin admin;
+    private final AdmissionService admissions = new AdmissionService();
+    private final BillingService billing = new BillingService();
 
     public AdminMenu(Admin admin) {
         this.admin = admin;
@@ -57,20 +63,39 @@ public class AdminMenu extends Menu {
                 data.getPatients().size(), data.getDoctors().size(), todayAppointments);
         System.out.printf("Admitted: %d | Available rooms: %d of %d | Unpaid bills: %d%n",
                 admitted, availableRooms, data.getRooms().size(), unpaid);
+        if (!canManageAppointments() || !canManageAdmissions() || !canManageBills()) {
+            Format.info("Appointments, admissions and bills appear here once there are patients, doctors "
+                    + "and rooms to work with.");
+        }
         System.out.println();
     }
 
+    private boolean canManageAppointments() {
+        boolean canBook = !data.getPatients().isEmpty() && !data.getDoctors().isEmpty();
+        return canBook || !data.getAppointments().isEmpty();
+    }
+
+    private boolean canManageAdmissions() {
+        boolean canAdmit = !data.getPatients().isEmpty() && !admissions.getAvailableRooms().isEmpty();
+        return canAdmit || !data.getAdmissions().isEmpty();
+    }
+
+    private boolean canManageBills() {
+        return !data.getBills().isEmpty() || !billing.getUnbilledAppointments().isEmpty()
+                || !billing.getUnbilledAdmissions().isEmpty();
+    }
+
     @Override
-    protected String[] getOptions() {
-        return new String[]{
-                "Manage patients",
-                "Manage doctors",
-                "Manage appointments",
-                "Manage rooms",
-                "Manage admissions",
-                "Manage bills",
-                "Change password"
-        };
+    protected List<Option> getOptions() {
+        List<Option> options = new ArrayList<>();
+        options.add(new Option("Manage patients", () -> new PatientManagementMenu().run()));
+        options.add(new Option("Manage doctors", () -> new DoctorManagementMenu().run()));
+        addIf(options, canManageAppointments(), "Manage appointments", () -> new AppointmentManagementMenu().run());
+        options.add(new Option("Manage rooms", () -> new RoomManagementMenu().run()));
+        addIf(options, canManageAdmissions(), "Manage admissions", () -> new AdmissionManagementMenu().run());
+        addIf(options, canManageBills(), "Manage bills", () -> new BillingManagementMenu().run());
+        options.add(new Option("Change password", () -> Prompts.changePassword(admin)));
+        return options;
     }
 
     @Override
@@ -81,34 +106,5 @@ public class AdminMenu extends Menu {
     @Override
     protected boolean onExit() {
         return InputHelper.readYesNo("Log out?");
-    }
-
-    @Override
-    protected void handle(int choice) throws InvalidInputException {
-        switch (choice) {
-            case 1:
-                new PatientManagementMenu().run();
-                break;
-            case 2:
-                new DoctorManagementMenu().run();
-                break;
-            case 3:
-                new AppointmentManagementMenu().run();
-                break;
-            case 4:
-                new RoomManagementMenu().run();
-                break;
-            case 5:
-                new AdmissionManagementMenu().run();
-                break;
-            case 6:
-                new BillingManagementMenu().run();
-                break;
-            case 7:
-                Prompts.changePassword(admin);
-                break;
-            default:
-                break;
-        }
     }
 }

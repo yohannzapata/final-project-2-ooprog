@@ -24,45 +24,29 @@ public class DoctorManagementMenu extends Menu {
 
     @Override
     protected String getTitle() {
-        return "DOCTOR MANAGEMENT";
+        return "ADMIN MENU > DOCTOR MANAGEMENT";
     }
 
     @Override
-    protected String[] getOptions() {
-        return new String[]{
-                "Add doctor",
-                "View all doctors",
-                "Search doctors",
-                "View doctor details",
-                "Update doctor",
-                "Delete doctor"
-        };
-    }
-
-    @Override
-    protected void handle(int choice) throws InvalidInputException {
-        switch (choice) {
-            case 1:
-                addDoctor();
-                break;
-            case 2:
-                printTable(data.getDoctors());
-                break;
-            case 3:
-                search();
-                break;
-            case 4:
-                printDetails(Prompts.selectDoctor());
-                break;
-            case 5:
-                updateDoctor();
-                break;
-            case 6:
-                deleteDoctor();
-                break;
-            default:
-                break;
+    protected void printSummary() {
+        System.out.println("Doctors on file: " + data.getDoctors().size());
+        if (data.getDoctors().isEmpty()) {
+            Format.info("Add a doctor to see the other options.");
         }
+        System.out.println();
+    }
+
+    @Override
+    protected List<Option> getOptions() {
+        boolean hasDoctors = !data.getDoctors().isEmpty();
+        List<Option> options = new ArrayList<>();
+        options.add(new Option("Add doctor", this::addDoctor));
+        addIf(options, hasDoctors, "View all doctors", () -> printTable(data.getDoctors()));
+        addIf(options, hasDoctors, "Search doctors", this::search);
+        addIf(options, hasDoctors, "View doctor details", this::viewDetails);
+        addIf(options, hasDoctors, "Update doctor", this::updateDoctor);
+        addIf(options, !getDeletableDoctors().isEmpty(), "Delete doctor", this::deleteDoctor);
+        return options;
     }
 
     private void addDoctor() {
@@ -76,7 +60,7 @@ public class DoctorManagementMenu extends Menu {
         String contact = InputHelper.read("Mobile number (09XXXXXXXXX): ", Validator::validateContactNumber);
         BigDecimal fee = InputHelper.readAmount("Consultation fee (" + Format.PESO + "): ", "Consultation fee", MAX_FEE);
         Set<DayOfWeek> days = InputHelper.read("Available days (e.g. MON,WED,FRI or MON-FRI): ", Validator::parseDays);
-        LocalTime start = InputHelper.read("Clinic start time (HH:mm): ", s -> Validator.parseTime(s, "Start time"));
+        LocalTime start = InputHelper.read("Clinic start time (HH:mm): ", s -> validateStartTime(Validator.parseTime(s, "Start time")));
         LocalTime end = InputHelper.read("Clinic end time (HH:mm): ", s -> validateEndTime(start, Validator.parseTime(s, "End time")));
 
         System.out.println();
@@ -93,6 +77,17 @@ public class DoctorManagementMenu extends Menu {
         data.save();
         Format.success(doctor.getDisplayName() + " added with ID " + doctor.getId() + ".");
         Format.info("The doctor must change the temporary password on first login.");
+    }
+
+    /** Checked as soon as the start time is typed, so the user does not find out only after the end time. */
+    private static LocalTime validateStartTime(LocalTime start) throws InvalidInputException {
+        if (start.getMinute() % Appointment.SLOT_MINUTES != 0) {
+            throw new InvalidInputException("Clinic hours must start on the hour or half hour (e.g. 08:00 or 08:30).");
+        }
+        if (start.isAfter(LocalTime.of(22, 30))) {
+            throw new InvalidInputException("Clinic hours must start by 22:30 so there is at least 1 hour before midnight.");
+        }
+        return start;
     }
 
     /** Clinic hours must allow at least one hour of consultations. */
@@ -119,9 +114,19 @@ public class DoctorManagementMenu extends Menu {
         return license;
     }
 
+    /** Searches until something is found or the user stops. */
     private void search() {
-        String keyword = InputHelper.readRequired("Enter name, ID or specialization: ", "Search keyword")
-                .toLowerCase(Locale.ROOT);
+        boolean isSearching = true;
+        while (isSearching) {
+            String keyword = InputHelper.readRequired("Enter name, ID or specialization: ", "Search keyword")
+                    .toLowerCase(Locale.ROOT);
+            List<Doctor> results = findDoctors(keyword);
+            printTable(results);
+            isSearching = results.isEmpty() && InputHelper.readYesNo("Search again?");
+        }
+    }
+
+    private List<Doctor> findDoctors(String keyword) {
         List<Doctor> results = new ArrayList<>();
         for (Doctor d : data.getDoctors()) {
             if (d.getId().toLowerCase(Locale.ROOT).contains(keyword)
@@ -130,10 +135,16 @@ public class DoctorManagementMenu extends Menu {
                 results.add(d);
             }
         }
-        printTable(results);
+        return results;
     }
 
-    private void updateDoctor() throws InvalidInputException {
+    private void viewDetails() {
+        printTable(data.getDoctors());
+        printDetails(Prompts.selectDoctor());
+    }
+
+    private void updateDoctor() {
+        printTable(data.getDoctors());
         Doctor doctor = Prompts.selectDoctor();
         System.out.println("Updating " + doctor.getDisplayName() + ". Type \"" + InputHelper.KEEP_WORD
                 + "\" to keep the current value.");
@@ -150,29 +161,32 @@ public class DoctorManagementMenu extends Menu {
                 Validator::validateContactNumber);
         BigDecimal fee = InputHelper.readOptional("Consultation fee [" + Format.money(doctor.getConsultationFee()) + "]: ",
                 s -> Validator.validateAmount(s, "Consultation fee", MAX_FEE));
-        Set<DayOfWeek> days = InputHelper.readOptional("Available days [" + Format.days(doctor.getAvailableDays())
-                + "]: ", Validator::parseDays);
-        LocalTime start = InputHelper.readOptional("Clinic start time [" + doctor.getStartTime() + "]: ",
-                s -> Validator.parseTime(s, "Start time"));
-        LocalTime newStart = start == null ? doctor.getStartTime() : start;
-        LocalTime end = InputHelper.readOptional("Clinic end time [" + doctor.getEndTime() + "]: ",
-                s -> validateEndTime(newStart, Validator.parseTime(s, "End time")));
-        LocalTime newEnd = end == null ? doctor.getEndTime() : end;
-        validateEndTime(newStart, newEnd);
-        Set<DayOfWeek> newDays = days == null ? doctor.getAvailableDays() : days;
 
-        // Do not allow a schedule change that would leave booked patients outside the new clinic hours.
-        int affected = 0;
-        for (Appointment a : data.getAppointments()) {
-            if (a.isUpcoming() && a.getDoctorId().equals(doctor.getId())
-                    && (!newDays.contains(a.getDate().getDayOfWeek()) || a.getTime().isBefore(newStart)
-                    || a.getTime().plusMinutes(Appointment.SLOT_MINUTES).isAfter(newEnd))) {
-                affected++;
+        // The schedule is asked again (instead of losing every answer) if it would leave
+        // booked patients outside the new clinic days or hours.
+        Set<DayOfWeek> newDays = doctor.getAvailableDays();
+        LocalTime newStart = doctor.getStartTime();
+        LocalTime newEnd = doctor.getEndTime();
+        boolean isScheduleValid = false;
+        while (!isScheduleValid) {
+            Set<DayOfWeek> days = InputHelper.readOptional("Available days [" + Format.days(doctor.getAvailableDays())
+                    + "]: ", Validator::parseDays);
+            LocalTime start = InputHelper.readOptional("Clinic start time [" + doctor.getStartTime() + "]: ",
+                    s -> validateStartTime(Validator.parseTime(s, "Start time")));
+            LocalTime startForEnd = start == null ? doctor.getStartTime() : start;
+            LocalTime end = InputHelper.readOptional("Clinic end time [" + doctor.getEndTime() + "]: ",
+                    s -> validateEndTime(startForEnd, Validator.parseTime(s, "End time")));
+            newDays = days == null ? doctor.getAvailableDays() : days;
+            newStart = startForEnd;
+            newEnd = end == null ? doctor.getEndTime() : end;
+            try {
+                validateEndTime(newStart, newEnd);
+                checkScheduleConflicts(doctor, newDays, newStart, newEnd);
+                isScheduleValid = true;
+            } catch (InvalidInputException e) {
+                Format.error(e.getMessage());
+                Format.info("Please enter the schedule again.");
             }
-        }
-        if (affected > 0) {
-            throw new InvalidInputException("The new schedule conflicts with " + affected
-                    + " upcoming appointment(s). Reschedule or cancel them first.");
         }
 
         if (first != null) {
@@ -202,21 +216,62 @@ public class DoctorManagementMenu extends Menu {
         }
     }
 
-    private void deleteDoctor() throws InvalidInputException {
-        Doctor doctor = Prompts.selectDoctor();
-        // Past appointments that are still "Scheduled" also count: only this doctor can mark them
-        // completed or no-show, so deleting the doctor would leave them stuck.
+    /** A schedule change must not leave booked patients outside the new clinic days or hours. */
+    private void checkScheduleConflicts(Doctor doctor, Set<DayOfWeek> days, LocalTime start, LocalTime end)
+            throws InvalidInputException {
+        int affected = 0;
+        for (Appointment a : data.getAppointments()) {
+            if (a.isUpcoming() && a.getDoctorId().equals(doctor.getId())
+                    && (!days.contains(a.getDate().getDayOfWeek()) || a.getTime().isBefore(start)
+                    || a.getTime().plusMinutes(Appointment.SLOT_MINUTES).isAfter(end))) {
+                affected++;
+            }
+        }
+        if (affected > 0) {
+            throw new InvalidInputException("The new schedule conflicts with " + affected
+                    + " upcoming appointment(s). Keep the schedule, or reschedule or cancel those appointments first.");
+        }
+    }
+
+    /**
+     * Past appointments that are still "Scheduled" also count: only this doctor can mark them
+     * completed or no-show, so deleting the doctor would leave them stuck. Returns null if there are none.
+     */
+    private String getDeleteBlocker(Doctor doctor) {
         int scheduled = 0;
         for (Appointment a : data.getAppointments()) {
             if (a.getDoctorId().equals(doctor.getId()) && a.isScheduled()) {
                 scheduled++;
             }
         }
-        if (scheduled > 0) {
-            throw new InvalidInputException(doctor.getDisplayName() + " has " + scheduled
-                    + " scheduled appointment(s) and cannot be deleted. Cancel them, or have the doctor mark "
-                    + "past ones as completed or no-show first.");
+        if (scheduled == 0) {
+            return null;
         }
+        return doctor.getDisplayName() + " has " + scheduled + " scheduled appointment(s) and cannot be deleted. "
+                + "Cancel them, or have the doctor mark past ones as completed or no-show first.";
+    }
+
+    private List<Doctor> getDeletableDoctors() {
+        List<Doctor> result = new ArrayList<>();
+        for (Doctor d : data.getDoctors()) {
+            if (getDeleteBlocker(d) == null) {
+                result.add(d);
+            }
+        }
+        return result;
+    }
+
+    private void deleteDoctor() {
+        System.out.println("Only doctors without scheduled appointments can be deleted:");
+        printTable(getDeletableDoctors());
+        Doctor doctor = Prompts.select("Enter doctor ID: ", id -> {
+            Doctor found = data.findDoctor(id);
+            String blocker = getDeleteBlocker(found);
+            if (blocker != null) {
+                throw new InvalidInputException(blocker);
+            }
+            return found;
+        });
         if (!InputHelper.confirm("Delete " + doctor.getDisplayName() + " (" + doctor.getId() + ")?")) {
             Format.info("Delete cancelled.");
             return;

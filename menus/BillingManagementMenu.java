@@ -6,7 +6,6 @@ import exceptions.InvalidInputException;
 import exceptions.RecordNotFoundException;
 import models.Admission;
 import models.Appointment;
-import models.AppointmentStatus;
 import models.Bill;
 import models.Patient;
 import services.AdmissionService;
@@ -28,75 +27,68 @@ public class BillingManagementMenu extends Menu {
 
     @Override
     protected String getTitle() {
-        return "BILLING";
+        return "ADMIN MENU > BILLING";
     }
 
     @Override
-    protected String[] getOptions() {
-        return new String[]{
-                "Create bill for a consultation",
-                "Create bill for an admission",
-                "View all bills",
-                "View unpaid bills",
-                "View bill statement",
-                "Change discount",
-                "Mark bill as paid",
-                "Delete unpaid bill"
-        };
-    }
-
-    @Override
-    protected void handle(int choice) throws InvalidInputException, RecordNotFoundException, DuplicateRecordException {
-        switch (choice) {
-            case 1:
-                billConsultation();
-                break;
-            case 2:
-                billAdmission();
-                break;
-            case 3:
-                service.printTable(data.getBills());
-                break;
-            case 4:
-                viewUnpaid();
-                break;
-            case 5:
-                service.printStatement(selectBill());
-                break;
-            case 6:
-                changeDiscount();
-                break;
-            case 7:
-                markPaid();
-                break;
-            case 8:
-                delete();
-                break;
-            default:
-                break;
+    protected void printSummary() {
+        BigDecimal receivables = BigDecimal.ZERO;
+        for (Bill b : service.getUnpaidBills()) {
+            receivables = receivables.add(b.getTotalAmount());
         }
+        System.out.println("Bills: " + data.getBills().size() + " | Unpaid: " + service.getUnpaidBills().size()
+                + " (" + Format.money(receivables) + ")");
+        System.out.println("Waiting to be billed: " + service.getUnbilledAppointments().size() + " consultation(s), "
+                + service.getUnbilledAdmissions().size() + " admission(s)");
+        System.out.println();
     }
 
-    private Bill selectBill() {
-        return Prompts.select("Enter bill ID: ", data::findBill);
+    @Override
+    protected List<Option> getOptions() {
+        boolean hasBills = !data.getBills().isEmpty();
+        boolean hasUnpaid = !service.getUnpaidBills().isEmpty();
+        List<Option> options = new ArrayList<>();
+        addIf(options, !service.getUnbilledAppointments().isEmpty(), "Create bill for a consultation", this::billConsultation);
+        addIf(options, !service.getUnbilledAdmissions().isEmpty(), "Create bill for an admission", this::billAdmission);
+        addIf(options, hasBills, "View all bills", () -> service.printTable(data.getBills()));
+        addIf(options, hasUnpaid, "View unpaid bills", this::viewUnpaid);
+        addIf(options, hasBills, "View bill statement", this::viewStatement);
+        addIf(options, hasUnpaid, "Change discount", this::changeDiscount);
+        addIf(options, hasUnpaid, "Mark bill as paid", this::markPaid);
+        addIf(options, hasUnpaid, "Delete unpaid bill", this::delete);
+        return options;
+    }
+
+    /** Only unpaid bills can be changed, paid or deleted; a paid bill is asked again with the reason. */
+    private Bill selectUnpaidBill() {
+        service.printTable(service.getUnpaidBills());
+        return Prompts.select("Enter bill ID: ", id -> {
+            Bill found = data.findBill(id);
+            if (found.isPaid()) {
+                throw new InvalidInputException("Bill " + found.getId() + " was paid on "
+                        + Format.date(found.getDatePaid()) + " and can no longer be changed.");
+            }
+            return found;
+        });
+    }
+
+    private void viewStatement() {
+        service.printTable(data.getBills());
+        service.printStatement(Prompts.select("Enter bill ID: ", data::findBill));
     }
 
     private void billConsultation() throws InvalidInputException, RecordNotFoundException, DuplicateRecordException {
-        List<Appointment> unbilled = new ArrayList<>();
-        for (Appointment a : data.getAppointments()) {
-            if (a.getStatus() == AppointmentStatus.COMPLETED
-                    && service.findExistingBill(Bill.Source.CONSULTATION, a.getId()) == null) {
-                unbilled.add(a);
-            }
-        }
-        if (unbilled.isEmpty()) {
-            Format.info("There are no completed appointments waiting to be billed.");
-            return;
-        }
         System.out.println("Completed appointments not yet billed:");
-        new AppointmentService().printTable(unbilled);
-        Appointment appointment = Prompts.select("Enter appointment ID: ", data::findAppointment);
-        service.checkCanBillAppointment(appointment);
+        new AppointmentService().printTable(service.getUnbilledAppointments());
+        Appointment appointment = Prompts.select("Enter appointment ID: ", id -> {
+            Appointment found = data.findAppointment(id);
+            try {
+                service.checkCanBillAppointment(found);
+            } catch (DuplicateRecordException e) {
+                throw new InvalidInputException(e.getMessage());
+            }
+            return found;
+        });
         Patient patient = data.findPatient(appointment.getPatientId());
         BigDecimal gross = appointment.getConsultationFee();
         System.out.println("Consultation fee: " + Format.money(gross));
@@ -109,20 +101,17 @@ public class BillingManagementMenu extends Menu {
     }
 
     private void billAdmission() throws InvalidInputException, RecordNotFoundException, DuplicateRecordException {
-        List<Admission> unbilled = new ArrayList<>();
-        for (Admission a : data.getAdmissions()) {
-            if (a.isDischarged() && service.findExistingBill(Bill.Source.ADMISSION, a.getId()) == null) {
-                unbilled.add(a);
-            }
-        }
-        if (unbilled.isEmpty()) {
-            Format.info("There are no discharged admissions waiting to be billed.");
-            return;
-        }
         System.out.println("Discharged admissions not yet billed:");
-        new AdmissionService().printTable(unbilled);
-        Admission admission = Prompts.select("Enter admission ID: ", data::findAdmission);
-        service.checkCanBillAdmission(admission);
+        new AdmissionService().printTable(service.getUnbilledAdmissions());
+        Admission admission = Prompts.select("Enter admission ID: ", id -> {
+            Admission found = data.findAdmission(id);
+            try {
+                service.checkCanBillAdmission(found);
+            } catch (DuplicateRecordException e) {
+                throw new InvalidInputException(e.getMessage());
+            }
+            return found;
+        });
         Patient patient = data.findPatient(admission.getPatientId());
         BigDecimal gross = service.computeGross(admission);
         System.out.println(admission.getDaysStayed() + " day(s) x " + Format.money(admission.getDailyRate())
@@ -138,12 +127,14 @@ public class BillingManagementMenu extends Menu {
     /** Only shows the discounts the patient is eligible for, based on age and IDs on file. */
     private DiscountType readDiscountType(Patient patient) {
         List<DiscountType> types = service.getEligibleTypes(patient);
+        if (types.size() == 1) {
+            Format.info("No Senior Citizen, PWD or PhilHealth ID on file for " + patient.getFullName()
+                    + ", so Regular billing is used.");
+            return types.get(0);
+        }
         System.out.println("Discount options for " + patient.getFullName() + " (age " + patient.getAge() + "):");
         for (int i = 0; i < types.size(); i++) {
             System.out.println("  " + (i + 1) + ". " + types.get(i).getOptionText());
-        }
-        if (types.size() == 1) {
-            Format.info("No Senior Citizen, PWD or PhilHealth ID on file, so only Regular billing is available.");
         }
         int choice = InputHelper.readInt("Choose discount: ", 1, types.size(), "Discount");
         return types.get(choice - 1);
@@ -158,27 +149,24 @@ public class BillingManagementMenu extends Menu {
     }
 
     private void viewUnpaid() {
-        List<Bill> unpaid = new ArrayList<>();
+        List<Bill> unpaid = service.getUnpaidBills();
         BigDecimal total = BigDecimal.ZERO;
-        for (Bill b : data.getBills()) {
-            if (!b.isPaid()) {
-                unpaid.add(b);
-                total = total.add(b.getTotalAmount());
-            }
+        for (Bill b : unpaid) {
+            total = total.add(b.getTotalAmount());
         }
         service.printTable(unpaid);
-        if (!unpaid.isEmpty()) {
-            System.out.println("Total receivables: " + Format.money(total));
-        }
+        System.out.println("Total receivables: " + Format.money(total));
     }
 
     private void changeDiscount() throws InvalidInputException, RecordNotFoundException {
-        Bill bill = selectBill();
-        if (bill.isPaid()) {
-            throw new InvalidInputException("Bill " + bill.getId() + " is already paid and can no longer be changed.");
-        }
+        Bill bill = selectUnpaidBill();
         Patient patient = data.findPatient(bill.getPatientId());
         System.out.println("Current discount: " + bill.getStrategy().getDescription());
+        if (service.getEligibleTypes(patient).size() == 1) {
+            Format.info(patient.getFullName() + " has no Senior Citizen, PWD or PhilHealth ID on file. "
+                    + "Update the patient record first to apply a discount.");
+            return;
+        }
         DiscountType type = readDiscountType(patient);
         BigDecimal deduction = readDeduction(type, bill.getGrossAmount());
         service.changeDiscount(bill, patient, type, deduction);
@@ -187,11 +175,8 @@ public class BillingManagementMenu extends Menu {
     }
 
     private void markPaid() throws InvalidInputException {
-        Bill bill = selectBill();
+        Bill bill = selectUnpaidBill();
         service.printStatement(bill);
-        if (bill.isPaid()) {
-            throw new InvalidInputException("This bill is already paid.");
-        }
         if (!InputHelper.readYesNo("Record full payment of " + Format.money(bill.getTotalAmount()) + "?")) {
             Format.info("Payment not recorded.");
             return;
@@ -201,10 +186,7 @@ public class BillingManagementMenu extends Menu {
     }
 
     private void delete() throws InvalidInputException {
-        Bill bill = selectBill();
-        if (bill.isPaid()) {
-            throw new InvalidInputException("Paid bills cannot be deleted.");
-        }
+        Bill bill = selectUnpaidBill();
         service.printStatement(bill);
         if (!InputHelper.confirm("Delete bill " + bill.getId() + "?")) {
             Format.info("Delete cancelled.");

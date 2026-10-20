@@ -93,7 +93,7 @@ public final class PatientForm {
      * Updates contact details. Identity fields (name, birthdate, sex) can only be corrected by an admin,
      * the same way a hospital records desk would require a valid ID before changing them.
      */
-    public static void update(Patient patient, boolean byAdmin) throws DuplicateRecordException {
+    public static void update(Patient patient, boolean byAdmin) {
         HospitalData data = HospitalData.getInstance();
         System.out.println("Type \"" + InputHelper.KEEP_WORD + "\" to keep the current value.");
 
@@ -102,7 +102,8 @@ public final class PatientForm {
         String newLast = patient.getLastName();
         LocalDate newBirth = patient.getBirthdate();
         String newSex = patient.getSex();
-        if (byAdmin) {
+        boolean isIdentityValid = !byAdmin;
+        while (!isIdentityValid) {
             String first = InputHelper.readOptional("First name [" + patient.getFirstName() + "]: ",
                     s -> Validator.validateName(s, "First name"));
             String middle = InputHelper.readOptional("Middle name [" + Format.orDash(patient.getMiddleName())
@@ -113,12 +114,19 @@ public final class PatientForm {
                     s -> Validator.validateBirthdate(Validator.parseDate(s, "Birthdate")));
             String sex = InputHelper.readOptional("Sex [" + patient.getSex() + "]: ", Validator::validateSex);
 
-            newFirst = first == null ? newFirst : first;
-            newMiddle = middle == null ? newMiddle : middle;
-            newLast = last == null ? newLast : last;
-            newBirth = birth == null ? newBirth : birth;
-            newSex = sex == null ? newSex : sex;
-            new AuthService().checkDuplicatePatient(newFirst, newMiddle, newLast, newBirth, patient.getId());
+            newFirst = first == null ? patient.getFirstName() : first;
+            newMiddle = middle == null ? patient.getMiddleName() : middle;
+            newLast = last == null ? patient.getLastName() : last;
+            newBirth = birth == null ? patient.getBirthdate() : birth;
+            newSex = sex == null ? patient.getSex() : sex;
+            // The same person cannot be on file twice; the identity fields are asked again instead.
+            try {
+                new AuthService().checkDuplicatePatient(newFirst, newMiddle, newLast, newBirth, patient.getId());
+                isIdentityValid = true;
+            } catch (DuplicateRecordException e) {
+                Format.error(e.getMessage());
+                Format.info("Please enter the name and birthdate again.");
+            }
         }
         boolean seniorAge = Period.between(newBirth, LocalDate.now()).getYears() >= Validator.SENIOR_AGE;
 

@@ -32,6 +32,38 @@ public class BillingService {
         return null;
     }
 
+    /** Completed appointments that do not have a bill yet. */
+    public List<Appointment> getUnbilledAppointments() {
+        List<Appointment> result = new ArrayList<>();
+        for (Appointment a : data.getAppointments()) {
+            if (a.getStatus() == AppointmentStatus.COMPLETED && findExistingBill(Bill.Source.CONSULTATION, a.getId()) == null) {
+                result.add(a);
+            }
+        }
+        return result;
+    }
+
+    /** Discharged admissions that do not have a bill yet. */
+    public List<Admission> getUnbilledAdmissions() {
+        List<Admission> result = new ArrayList<>();
+        for (Admission a : data.getAdmissions()) {
+            if (a.isDischarged() && findExistingBill(Bill.Source.ADMISSION, a.getId()) == null) {
+                result.add(a);
+            }
+        }
+        return result;
+    }
+
+    public List<Bill> getUnpaidBills() {
+        List<Bill> result = new ArrayList<>();
+        for (Bill b : data.getBills()) {
+            if (!b.isPaid()) {
+                result.add(b);
+            }
+        }
+        return result;
+    }
+
     public void checkCanBillAppointment(Appointment appointment) throws InvalidInputException, DuplicateRecordException {
         if (appointment.getStatus() != AppointmentStatus.COMPLETED) {
             throw new InvalidInputException("Only completed appointments can be billed. Appointment "

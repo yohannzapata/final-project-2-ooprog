@@ -71,7 +71,7 @@ public final class AppointmentForm {
         System.out.println("Schedule of " + doctor.getDisplayName() + ": " + doctor.getScheduleText());
 
         LocalDate date = readDate(doctor);
-        LocalTime time = readTime(doctor, patient, date, appointment.getId());
+        LocalTime time = readTime(doctor, patient, date, appointment);
         SERVICE.reschedule(appointment, doctor, patient, date, time);
         Format.success("Appointment " + appointment.getId() + " moved to " + Format.date(date) + " at "
                 + Format.time(time) + ".");
@@ -89,7 +89,9 @@ public final class AppointmentForm {
         });
     }
 
-    private static LocalTime readTime(Doctor doctor, Patient patient, LocalDate date, String excludeId) {
+    /** current is the appointment being rescheduled, or null for a new booking. */
+    private static LocalTime readTime(Doctor doctor, Patient patient, LocalDate date, Appointment current) {
+        String excludeId = current == null ? null : current.getId();
         List<LocalTime> slots = SERVICE.getAvailableSlots(doctor, date);
         System.out.println("Available times on " + Format.date(date) + ":");
         StringBuilder line = new StringBuilder();
@@ -105,6 +107,9 @@ public final class AppointmentForm {
         }
         return InputHelper.read("Appointment time (HH:mm): ", s -> {
             LocalTime time = Validator.parseTime(s, "Appointment time");
+            if (current != null && current.getDate().equals(date) && current.getTime().equals(time)) {
+                throw new InvalidInputException("That is the current schedule. Choose a different time.");
+            }
             try {
                 SERVICE.validateSlot(doctor, patient, date, time, excludeId);
             } catch (ScheduleConflictException e) {

@@ -17,26 +17,38 @@ import util.Validator;
  */
 public final class Prompts {
 
-    /** Looks up a record by the typed ID; throws if it does not exist or the user may not see it. */
+    /** Tries allowed for the current password before the change is stopped. */
+    public static final int MAX_PASSWORD_ATTEMPTS = 3;
+
+    /**
+     * Looks up a record by the typed ID. Throws if it does not exist, or InvalidInputException
+     * with the reason if it exists but cannot be used for this action (e.g. a bill that is already paid).
+     */
     @FunctionalInterface
     public interface Finder<T> {
-        T find(String id) throws RecordNotFoundException;
+        T find(String id) throws RecordNotFoundException, InvalidInputException;
     }
 
     private Prompts() {
     }
 
-    /** Keeps asking for an ID until an existing (and allowed) record is entered. */
+    /** Keeps asking for an ID until a record that can be used is entered, or the user types "back". */
     public static <T> T select(String prompt, Finder<T> finder) {
         T record = null;
         boolean isFound = false;
+        boolean isHintShown = false;
         while (!isFound) {
             String id = InputHelper.readId(prompt);
             try {
                 record = finder.find(id);
                 isFound = true;
-            } catch (RecordNotFoundException e) {
+            } catch (RecordNotFoundException | InvalidInputException e) {
                 Format.error(e.getMessage());
+                if (!isHintShown) {
+                    Format.info("Try again with one from the list, or type \"" + InputHelper.CANCEL_WORD
+                            + "\" to cancel.");
+                    isHintShown = true;
+                }
             }
         }
         return record;
@@ -87,15 +99,39 @@ public final class Prompts {
         return username;
     }
 
-    /** Change password from any role's menu. The current password is asked first. */
+    /**
+     * Change password from any role's menu. The current password is asked first, with a few tries,
+     * and a new password that breaks a rule is asked again instead of ending the change.
+     */
     public static void changePassword(User user) throws InvalidInputException {
-        String current = InputHelper.readPassword("Current password: ");
-        if (!user.checkPassword(current)) {
-            throw new InvalidInputException("Current password is incorrect.");
+        String current = "";
+        int attemptsLeft = MAX_PASSWORD_ATTEMPTS;
+        boolean isVerified = false;
+        boolean isAsking = true;
+        while (isAsking) {
+            current = InputHelper.readPassword("Current password: ");
+            isVerified = user.checkPassword(current);
+            attemptsLeft--;
+            isAsking = !isVerified && attemptsLeft > 0;
+            if (isAsking) {
+                Format.error("Current password is incorrect. " + attemptsLeft + " attempt(s) left.");
+            }
+        }
+        if (!isVerified) {
+            throw new InvalidInputException("Current password is incorrect. Your password was not changed.");
         }
         printPasswordRules();
-        String newPassword = readNewPassword(user.getUsername(), "New password");
-        new AuthService().changePassword(user, current, newPassword, newPassword);
+        AuthService auth = new AuthService();
+        boolean isChanged = false;
+        while (!isChanged) {
+            String newPassword = readNewPassword(user.getUsername(), "New password");
+            try {
+                auth.changePassword(user, current, newPassword, newPassword);
+                isChanged = true;
+            } catch (InvalidInputException e) {
+                Format.error(e.getMessage());
+            }
+        }
         Format.success("Password changed.");
     }
 
