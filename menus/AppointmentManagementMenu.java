@@ -4,6 +4,7 @@ import exceptions.InvalidInputException;
 import exceptions.RecordNotFoundException;
 import exceptions.ScheduleConflictException;
 import models.Appointment;
+import models.Patient;
 import services.AppointmentService;
 import util.Format;
 import util.InputHelper;
@@ -22,45 +23,29 @@ public class AppointmentManagementMenu extends Menu {
 
     @Override
     protected String getTitle() {
-        return "APPOINTMENT MANAGEMENT";
+        return "ADMIN MENU > APPOINTMENT MANAGEMENT";
     }
 
     @Override
-    protected String[] getOptions() {
-        return new String[]{
-                "View all appointments",
-                "View appointments on a date",
-                "View appointment details",
-                "Book appointment for a patient",
-                "Reschedule appointment",
-                "Cancel appointment"
-        };
+    protected void printSummary() {
+        System.out.println("Appointments: " + data.getAppointments().size() + " | Upcoming: "
+                + service.getUpcoming(data.getAppointments()).size());
+        System.out.println();
     }
 
     @Override
-    protected void handle(int choice) throws InvalidInputException, RecordNotFoundException, ScheduleConflictException {
-        switch (choice) {
-            case 1:
-                service.printTable(service.getAllSorted());
-                break;
-            case 2:
-                viewByDate();
-                break;
-            case 3:
-                service.printDetails(Prompts.select("Enter appointment ID: ", data::findAppointment));
-                break;
-            case 4:
-                AppointmentForm.book(Prompts.selectPatient());
-                break;
-            case 5:
-                AppointmentForm.reschedule(Prompts.select("Enter appointment ID: ", data::findAppointment));
-                break;
-            case 6:
-                cancel();
-                break;
-            default:
-                break;
-        }
+    protected List<Option> getOptions() {
+        boolean hasAppointments = !data.getAppointments().isEmpty();
+        boolean hasUpcoming = !service.getUpcoming(data.getAppointments()).isEmpty();
+        boolean canBook = !data.getPatients().isEmpty() && !data.getDoctors().isEmpty();
+        List<Option> options = new ArrayList<>();
+        addIf(options, hasAppointments, "View all appointments", () -> service.printTable(service.getAllSorted()));
+        addIf(options, hasAppointments, "View appointments on a date", this::viewByDate);
+        addIf(options, hasAppointments, "View appointment details", this::viewDetails);
+        addIf(options, canBook, "Book appointment for a patient", this::book);
+        addIf(options, hasUpcoming, "Reschedule appointment", this::reschedule);
+        addIf(options, hasUpcoming, "Cancel appointment", this::cancel);
+        return options;
     }
 
     private void viewByDate() {
@@ -76,16 +61,43 @@ public class AppointmentManagementMenu extends Menu {
         service.printTable(result);
     }
 
+    private void viewDetails() {
+        service.printTable(service.getAllSorted());
+        service.printDetails(Prompts.select("Enter appointment ID: ", data::findAppointment));
+    }
+
+    private void book() throws InvalidInputException, ScheduleConflictException {
+        PatientManagementMenu.printTable(data.getPatients());
+        // An admitted patient is asked again here, before the rest of the booking is filled in.
+        Patient patient = Prompts.select("Enter patient ID: ", id -> {
+            Patient found = data.findPatient(id);
+            service.checkNotAdmitted(found);
+            return found;
+        });
+        AppointmentForm.book(patient);
+    }
+
+    /** Only upcoming appointments can be rescheduled or cancelled; anything else is asked again. */
+    private Appointment selectUpcoming() {
+        service.printTable(service.getUpcoming(service.getAllSorted()));
+        return Prompts.select("Enter appointment ID: ", id -> {
+            Appointment found = data.findAppointment(id);
+            if (!found.isUpcoming()) {
+                throw new InvalidInputException("Appointment " + found.getId() + " is "
+                        + (found.isScheduled() ? "already past its time" : found.getStatus().getLabel().toLowerCase())
+                        + ". Only upcoming appointments can be changed.");
+            }
+            return found;
+        });
+    }
+
+    private void reschedule() throws InvalidInputException, ScheduleConflictException, RecordNotFoundException {
+        AppointmentForm.reschedule(selectUpcoming());
+    }
+
     private void cancel() throws InvalidInputException {
-        Appointment appointment = Prompts.select("Enter appointment ID: ", data::findAppointment);
+        Appointment appointment = selectUpcoming();
         service.printDetails(appointment);
-        if (!appointment.isScheduled()) {
-            throw new InvalidInputException("Only scheduled appointments can be cancelled.");
-        }
-        if (!appointment.isUpcoming()) {
-            throw new InvalidInputException("This appointment's time has already passed and can no longer be "
-                    + "cancelled. The doctor should mark it as completed or no-show.");
-        }
         if (!InputHelper.confirm("Cancel this appointment?")) {
             Format.info("The appointment was not cancelled.");
             return;

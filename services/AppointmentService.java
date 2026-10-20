@@ -200,6 +200,17 @@ public class AppointmentService {
         return result;
     }
 
+    /** Scheduled appointments whose time has not come yet; these can still be rescheduled or cancelled. */
+    public List<Appointment> getUpcoming(List<Appointment> appointments) {
+        List<Appointment> result = new ArrayList<>();
+        for (Appointment a : appointments) {
+            if (a.isUpcoming()) {
+                result.add(a);
+            }
+        }
+        return result;
+    }
+
     public List<Appointment> getAllSorted() {
         List<Appointment> result = new ArrayList<>(data.getAppointments());
         result.sort(Comparator.comparing(Appointment::getDateTime));

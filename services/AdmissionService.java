@@ -33,6 +33,37 @@ public class AdmissionService {
         return null;
     }
 
+    public List<Admission> getActiveAdmissions() {
+        List<Admission> result = new ArrayList<>();
+        for (Admission a : data.getAdmissions()) {
+            if (!a.isDischarged()) {
+                result.add(a);
+            }
+        }
+        return result;
+    }
+
+    public List<Room> getAvailableRooms() {
+        List<Room> result = new ArrayList<>();
+        for (Room r : data.getRooms()) {
+            if (r.isAvailable()) {
+                result.add(r);
+            }
+        }
+        return result;
+    }
+
+    /** Patients who are not admitted right now. */
+    public List<Patient> getAdmittablePatients() {
+        List<Patient> result = new ArrayList<>();
+        for (Patient p : data.getPatients()) {
+            if (getActiveAdmission(p.getId()) == null) {
+                result.add(p);
+            }
+        }
+        return result;
+    }
+
     public void checkCanAdmit(Patient patient) throws InvalidInputException {
         Admission active = getActiveAdmission(patient.getId());
         if (active != null) {

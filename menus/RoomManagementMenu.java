@@ -1,9 +1,8 @@
 package menus;
 
-import exceptions.DuplicateRecordException;
 import exceptions.InvalidInputException;
-import models.Admission;
 import models.Room;
+import services.AdmissionService;
 import util.Format;
 import util.InputHelper;
 import util.Validator;
@@ -19,58 +18,54 @@ public class RoomManagementMenu extends Menu {
 
     public static final BigDecimal MAX_DAILY_RATE = new BigDecimal("100000");
 
+    private final AdmissionService admissions = new AdmissionService();
+
     @Override
     protected String getTitle() {
-        return "ROOM MANAGEMENT";
+        return "ADMIN MENU > ROOM MANAGEMENT";
     }
 
     @Override
-    protected String[] getOptions() {
-        return new String[]{
-                "Add room",
-                "View all rooms",
-                "View available rooms",
-                "Update room",
-                "Delete room"
-        };
+    protected void printSummary() {
+        System.out.println("Rooms: " + data.getRooms().size() + " | Available: " + admissions.getAvailableRooms().size());
+        if (data.getRooms().isEmpty()) {
+            Format.info("Add a room to see the other options.");
+        }
+        System.out.println();
     }
 
     @Override
-    protected void handle(int choice) throws InvalidInputException, DuplicateRecordException {
-        switch (choice) {
-            case 1:
-                addRoom();
-                break;
-            case 2:
-                printTable(data.getRooms());
-                break;
-            case 3:
-                printTable(getAvailableRooms());
-                break;
-            case 4:
-                updateRoom();
-                break;
-            case 5:
-                deleteRoom();
-                break;
-            default:
-                break;
-        }
+    protected List<Option> getOptions() {
+        boolean hasRooms = !data.getRooms().isEmpty();
+        // Only available rooms can be deleted; occupied rooms and rooms under maintenance cannot.
+        boolean hasAvailable = !admissions.getAvailableRooms().isEmpty();
+        List<Option> options = new ArrayList<>();
+        options.add(new Option("Add room", this::addRoom));
+        addIf(options, hasRooms, "View all rooms", () -> printTable(data.getRooms()));
+        addIf(options, hasAvailable, "View available rooms", () -> printTable(admissions.getAvailableRooms()));
+        addIf(options, hasRooms, "Update room", this::updateRoom);
+        addIf(options, hasAvailable, "Delete room", this::deleteRoom);
+        return options;
     }
 
-    private void addRoom() throws DuplicateRecordException {
-        String number = InputHelper.read("Room number (e.g. 201 or ICU-1): ", Validator::validateRoomNumber);
-        for (Room r : data.getRooms()) {
-            if (r.getRoomNumber().equalsIgnoreCase(number)) {
-                throw new DuplicateRecordException("Room " + number + " already exists.");
-            }
-        }
+    private void addRoom() {
+        String number = InputHelper.read("Room number (e.g. 201 or ICU-1): ", s -> checkNewRoomNumber(Validator.validateRoomNumber(s)));
         Room.Type type = readType();
         BigDecimal rate = InputHelper.readAmount("Daily rate (" + Format.PESO + "): ", "Daily rate", MAX_DAILY_RATE);
         Room room = new Room(number, type, rate);
         data.getRooms().add(room);
         data.save();
         Format.success("Room " + number + " (" + type.getLabel() + ") added.");
+    }
+
+    /** Checked while typing, so a taken number is simply asked again. */
+    private String checkNewRoomNumber(String number) throws InvalidInputException {
+        for (Room r : data.getRooms()) {
+            if (r.getRoomNumber().equalsIgnoreCase(number)) {
+                throw new InvalidInputException("Room " + number + " already exists. Enter a different room number.");
+            }
+        }
+        return number;
     }
 
     private Room.Type readType() {
@@ -83,7 +78,8 @@ public class RoomManagementMenu extends Menu {
         return types[choice - 1];
     }
 
-    private void updateRoom() throws InvalidInputException {
+    private void updateRoom() {
+        printTable(data.getRooms());
         Room room = Prompts.select("Enter room number: ", data::findRoom);
         System.out.println("Updating room " + room.getRoomNumber() + ". Type \"" + InputHelper.KEEP_WORD
                 + "\" to keep the current value.");
@@ -106,6 +102,10 @@ public class RoomManagementMenu extends Menu {
             }
         }
 
+        if (type == null && rate == null && status == null) {
+            Format.info("No changes made.");
+            return;
+        }
         if (type != null) {
             room.setType(type);
         }
@@ -122,17 +122,17 @@ public class RoomManagementMenu extends Menu {
         }
     }
 
-    private void deleteRoom() throws InvalidInputException {
-        Room room = Prompts.select("Enter room number: ", data::findRoom);
-        if (!room.isAvailable()) {
-            throw new InvalidInputException("Room " + room.getRoomNumber() + " is "
-                    + room.getStatus().getLabel().toLowerCase() + ". Only available rooms can be deleted.");
-        }
-        for (Admission a : data.getAdmissions()) {
-            if (a.getRoomNumber().equals(room.getRoomNumber()) && !a.isDischarged()) {
-                throw new InvalidInputException("Room " + room.getRoomNumber() + " has an active admission.");
+    private void deleteRoom() {
+        System.out.println("Only available rooms can be deleted:");
+        printTable(admissions.getAvailableRooms());
+        Room room = Prompts.select("Enter room number: ", number -> {
+            Room found = data.findRoom(number);
+            if (!found.isAvailable()) {
+                throw new InvalidInputException("Room " + found.getRoomNumber() + " is "
+                        + found.getStatus().getLabel().toLowerCase() + ". Only available rooms can be deleted.");
             }
-        }
+            return found;
+        });
         if (!InputHelper.confirm("Delete room " + room.getRoomNumber() + "?")) {
             Format.info("Delete cancelled.");
             return;
@@ -140,16 +140,6 @@ public class RoomManagementMenu extends Menu {
         data.getRooms().remove(room);
         data.save();
         Format.success("Room deleted.");
-    }
-
-    public List<Room> getAvailableRooms() {
-        List<Room> result = new ArrayList<>();
-        for (Room r : data.getRooms()) {
-            if (r.isAvailable()) {
-                result.add(r);
-            }
-        }
-        return result;
     }
 
     public static void printTable(List<Room> rooms) {

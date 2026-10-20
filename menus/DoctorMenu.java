@@ -15,6 +15,7 @@ import util.InputHelper;
 import util.Validator;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
@@ -41,33 +42,41 @@ public class DoctorMenu extends Menu {
     @Override
     protected void printSummary() {
         int today = 0;
-        for (Appointment a : appointments.getByDoctor(doctor.getId())) {
+        for (Appointment a : getMyAppointments()) {
             if (a.isScheduled() && a.getDate().equals(LocalDate.now())) {
                 today++;
             }
         }
         System.out.println("Welcome, " + doctor.getDisplayName() + " (" + doctor.getSpecialization() + ")");
         System.out.println("You have " + today + " scheduled appointment(s) today.");
+        int due = getDueAppointments().size();
+        if (due > 0) {
+            Format.info(due + " appointment(s) are past their time. Mark them as completed or no-show.");
+        }
         System.out.println();
     }
 
     @Override
-    protected String[] getOptions() {
-        return new String[]{
-                "View today's appointments",
-                "View upcoming appointments",
-                "View all my appointments",
-                "Mark appointment as completed",
-                "Mark appointment as no-show",
-                "View my patients",
-                "View patient details and history",
-                "Add medical record",
-                "View medical records",
-                "Update medical record",
-                "Delete medical record",
-                "View my profile",
-                "Change password"
-        };
+    protected List<Option> getOptions() {
+        boolean hasAppointments = !getMyAppointments().isEmpty();
+        boolean hasDue = !getDueAppointments().isEmpty();
+        boolean hasRecords = !getMyRecords(null).isEmpty();
+        List<Option> options = new ArrayList<>();
+        addIf(options, !getTodayAppointments().isEmpty(), "View today's appointments", this::viewToday);
+        addIf(options, !getUpcomingAppointments().isEmpty(), "View upcoming appointments",
+                () -> appointments.printTable(getUpcomingAppointments()));
+        addIf(options, hasAppointments, "View all my appointments", () -> appointments.printTable(getMyAppointments()));
+        addIf(options, hasDue, "Mark appointment as completed", this::completeAppointment);
+        addIf(options, hasDue, "Mark appointment as no-show", this::markNoShow);
+        addIf(options, hasAppointments, "View my patients", () -> PatientManagementMenu.printTable(getMyPatients()));
+        addIf(options, hasAppointments, "View patient details and history", this::viewPatientHistory);
+        addIf(options, !getAppointmentsWithoutRecord().isEmpty(), "Add medical record", this::addRecord);
+        addIf(options, hasRecords, "View medical records", this::viewRecords);
+        addIf(options, hasRecords, "Update medical record", this::updateRecord);
+        addIf(options, hasRecords, "Delete medical record", this::deleteRecord);
+        options.add(new Option("View my profile", () -> DoctorManagementMenu.printDetails(doctor)));
+        options.add(new Option("Change password", () -> Prompts.changePassword(doctor)));
+        return options;
     }
 
     @Override
@@ -80,54 +89,42 @@ public class DoctorMenu extends Menu {
         return InputHelper.readYesNo("Log out?");
     }
 
-    @Override
-    protected void handle(int choice) throws InvalidInputException, DuplicateRecordException {
-        switch (choice) {
-            case 1:
-                viewToday();
-                break;
-            case 2:
-                viewUpcoming();
-                break;
-            case 3:
-                appointments.printTable(appointments.getByDoctor(doctor.getId()));
-                break;
-            case 4:
-                completeAppointment();
-                break;
-            case 5:
-                markNoShow();
-                break;
-            case 6:
-                PatientManagementMenu.printTable(getMyPatients());
-                break;
-            case 7:
-                viewPatientHistory();
-                break;
-            case 8:
-                addRecord();
-                break;
-            case 9:
-                viewRecords();
-                break;
-            case 10:
-                updateRecord();
-                break;
-            case 11:
-                deleteRecord();
-                break;
-            case 12:
-                DoctorManagementMenu.printDetails(doctor);
-                break;
-            case 13:
-                Prompts.changePassword(doctor);
-                break;
-            default:
-                break;
-        }
+    // ---------------------------------------------------------------- appointments
+
+    private List<Appointment> getMyAppointments() {
+        return appointments.getByDoctor(doctor.getId());
     }
 
-    // ---------------------------------------------------------------- appointments
+    private List<Appointment> getTodayAppointments() {
+        List<Appointment> list = new ArrayList<>();
+        for (Appointment a : getMyAppointments()) {
+            if (a.getDate().equals(LocalDate.now())) {
+                list.add(a);
+            }
+        }
+        return list;
+    }
+
+    private List<Appointment> getUpcomingAppointments() {
+        List<Appointment> list = new ArrayList<>();
+        for (Appointment a : getMyAppointments()) {
+            if (a.isScheduled() && !a.getDate().isBefore(LocalDate.now())) {
+                list.add(a);
+            }
+        }
+        return list;
+    }
+
+    /** Scheduled appointments whose time has come; only these can be marked completed or no-show. */
+    private List<Appointment> getDueAppointments() {
+        List<Appointment> list = new ArrayList<>();
+        for (Appointment a : getMyAppointments()) {
+            if (a.isScheduled() && !a.getDateTime().isAfter(LocalDateTime.now())) {
+                list.add(a);
+            }
+        }
+        return list;
+    }
 
     private Appointment findOwnAppointment(String id) throws RecordNotFoundException {
         Appointment a = data.findAppointment(id);
@@ -138,30 +135,36 @@ public class DoctorMenu extends Menu {
         return a;
     }
 
-    private void viewToday() {
-        List<Appointment> list = new ArrayList<>();
-        for (Appointment a : appointments.getByDoctor(doctor.getId())) {
-            if (a.getDate().equals(LocalDate.now())) {
-                list.add(a);
+    /** Asks for one of the due appointments; a future or finished one is asked again with the reason. */
+    private Appointment selectDueAppointment() {
+        System.out.println("Appointments past their time:");
+        appointments.printTable(getDueAppointments());
+        return Prompts.select("Enter appointment ID: ", id -> {
+            Appointment a = findOwnAppointment(id);
+            if (!a.isScheduled()) {
+                throw new InvalidInputException("Appointment " + a.getId() + " is already "
+                        + a.getStatus().getLabel().toLowerCase() + ".");
             }
-        }
-        System.out.println("Appointments today, " + Format.date(LocalDate.now()) + ":");
-        appointments.printTable(list);
+            if (a.getDateTime().isAfter(LocalDateTime.now())) {
+                throw new InvalidInputException("Appointment " + a.getId() + " is on " + Format.date(a.getDate())
+                        + " at " + Format.time(a.getTime()) + " and cannot be marked before its schedule.");
+            }
+            return a;
+        });
     }
 
-    private void viewUpcoming() {
-        List<Appointment> list = new ArrayList<>();
-        for (Appointment a : appointments.getByDoctor(doctor.getId())) {
-            if (a.isScheduled() && !a.getDate().isBefore(LocalDate.now())) {
-                list.add(a);
-            }
-        }
-        appointments.printTable(list);
+    private void viewToday() {
+        System.out.println("Appointments today, " + Format.date(LocalDate.now()) + ":");
+        appointments.printTable(getTodayAppointments());
     }
 
     private void completeAppointment() throws InvalidInputException, DuplicateRecordException {
-        Appointment a = Prompts.select("Enter appointment ID: ", this::findOwnAppointment);
+        Appointment a = selectDueAppointment();
         appointments.printDetails(a);
+        if (!InputHelper.confirm("Mark this appointment as completed?")) {
+            Format.info("Nothing was changed.");
+            return;
+        }
         appointments.complete(a);
         Format.success("Appointment " + a.getId() + " marked as completed.");
         if (InputHelper.readYesNo("Add the medical record for this consultation now?")) {
@@ -170,12 +173,8 @@ public class DoctorMenu extends Menu {
     }
 
     private void markNoShow() throws InvalidInputException {
-        Appointment a = Prompts.select("Enter appointment ID: ", this::findOwnAppointment);
+        Appointment a = selectDueAppointment();
         appointments.printDetails(a);
-        if (!a.isScheduled() || a.isUpcoming()) {
-            // Let the service give the exact reason before asking for confirmation.
-            appointments.markNoShow(a);
-        }
         if (!InputHelper.confirm("Mark this patient as no-show?")) {
             Format.info("Nothing was changed.");
             return;
@@ -189,7 +188,7 @@ public class DoctorMenu extends Menu {
     /** Patients who have at least one appointment with this doctor. */
     private List<Patient> getMyPatients() {
         Set<String> ids = new LinkedHashSet<>();
-        for (Appointment a : appointments.getByDoctor(doctor.getId())) {
+        for (Appointment a : getMyAppointments()) {
             ids.add(a.getPatientId());
         }
         List<Patient> result = new ArrayList<>();
@@ -211,11 +210,12 @@ public class DoctorMenu extends Menu {
     }
 
     private void viewPatientHistory() {
+        PatientManagementMenu.printTable(getMyPatients());
         Patient patient = Prompts.select("Enter patient ID: ", this::findOwnPatient);
         PatientForm.printProfile(patient);
         Format.subHeader("Appointments with you");
         List<Appointment> list = new ArrayList<>();
-        for (Appointment a : appointments.getByDoctor(doctor.getId())) {
+        for (Appointment a : getMyAppointments()) {
             if (a.getPatientId().equals(patient.getId())) {
                 list.add(a);
             }
@@ -255,20 +255,31 @@ public class DoctorMenu extends Menu {
         return null;
     }
 
-    private void addRecord() throws InvalidInputException, DuplicateRecordException {
+    private List<Appointment> getAppointmentsWithoutRecord() {
         List<Appointment> pending = new ArrayList<>();
-        for (Appointment a : appointments.getByDoctor(doctor.getId())) {
+        for (Appointment a : getMyAppointments()) {
             if (a.getStatus() == AppointmentStatus.COMPLETED && findRecordForAppointment(a.getId()) == null) {
                 pending.add(a);
             }
         }
-        if (pending.isEmpty()) {
-            Format.info("All your completed appointments already have medical records.");
-            return;
-        }
+        return pending;
+    }
+
+    private void addRecord() throws InvalidInputException, DuplicateRecordException {
         System.out.println("Completed appointments without a medical record:");
-        appointments.printTable(pending);
-        Appointment a = Prompts.select("Enter appointment ID: ", this::findOwnAppointment);
+        appointments.printTable(getAppointmentsWithoutRecord());
+        Appointment a = Prompts.select("Enter appointment ID: ", id -> {
+            Appointment found = findOwnAppointment(id);
+            if (found.getStatus() != AppointmentStatus.COMPLETED) {
+                throw new InvalidInputException("Medical records can only be added to completed appointments.");
+            }
+            MedicalRecord existing = findRecordForAppointment(found.getId());
+            if (existing != null) {
+                throw new InvalidInputException("Appointment " + found.getId() + " already has medical record "
+                        + existing.getId() + ". Use Update instead.");
+            }
+            return found;
+        });
         createRecord(a);
     }
 
@@ -299,19 +310,20 @@ public class DoctorMenu extends Menu {
     private void viewRecords() {
         List<MedicalRecord> records = getMyRecords(null);
         printRecords(records);
-        if (!records.isEmpty() && InputHelper.readYesNo("View full details of a record?")) {
+        if (InputHelper.readYesNo("View full details of a record?")) {
             printRecord(Prompts.select("Enter record ID: ", this::findOwnRecord));
         }
     }
 
     private void updateRecord() {
+        printRecords(getMyRecords(null));
         MedicalRecord r = Prompts.select("Enter record ID: ", this::findOwnRecord);
         printRecord(r);
         System.out.println("Type \"" + InputHelper.KEEP_WORD + "\" to keep the current value.");
         String diagnosis = InputHelper.readOptional("Diagnosis: ",
                 s -> Validator.validateText(s, "Diagnosis", 200, true));
-        String prescription = InputHelper.readOptional("Prescription: ",
-                s -> Validator.validateText(s, "Prescription", 300, true));
+        String prescription = InputHelper.readOptional("Prescription (type \"none\" if none): ",
+                s -> InputHelper.isNone(s) ? "None" : Validator.validateText(s, "Prescription", 300, true));
         String notes = InputHelper.readOptional("Notes (type \"none\" to clear): ",
                 s -> InputHelper.isNone(s) ? "" : Validator.validateText(s, "Notes", 500, true));
         if (diagnosis == null && prescription == null && notes == null) {
@@ -332,6 +344,7 @@ public class DoctorMenu extends Menu {
     }
 
     private void deleteRecord() {
+        printRecords(getMyRecords(null));
         MedicalRecord r = Prompts.select("Enter record ID: ", this::findOwnRecord);
         printRecord(r);
         if (!InputHelper.confirm("Delete medical record " + r.getId() + "?")) {
