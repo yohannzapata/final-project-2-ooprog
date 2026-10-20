@@ -25,7 +25,8 @@ public class Main {
         HospitalData data = HospitalData.getInstance();
         data.load();
 
-        while (true) {
+        boolean isRunning = true;
+        while (isRunning) {
             Format.header("HOSPITAL MANAGEMENT SYSTEM");
             System.out.println(" 1. Login");
             System.out.println(" 2. Register as a new patient");
@@ -43,7 +44,7 @@ public class Main {
                         if (InputHelper.readYesNo("Exit the program?")) {
                             data.save();
                             System.out.println("Thank you for using the Hospital Management System. Goodbye!");
-                            return;
+                            isRunning = false;
                         }
                         break;
                     default:
@@ -57,46 +58,56 @@ public class Main {
 
     private static void login() {
         Format.subHeader("Login");
-        for (int attempt = 1; attempt <= MAX_LOGIN_ATTEMPTS; attempt++) {
-            String username = InputHelper.readLine("Username: ").trim();
-            if (username.equalsIgnoreCase(InputHelper.CANCEL_WORD)) {
-                throw new OperationCancelledException();
-            }
+        User user = null;
+        int attempt = 0;
+        boolean isLoggingIn = true;
+        while (isLoggingIn) {
+            attempt++;
+            // Blank input is asked again and does not use up an attempt.
+            String username = InputHelper.read("Username: ", s -> s.trim());
             String password = InputHelper.readPassword("Password: ");
             try {
-                User user = AUTH.login(username, password);
-                if (user.isMustChangePassword() && !forcePasswordChange(user)) {
-                    return;
-                }
-                Format.success("Login successful. Welcome, " + user.getDisplayName() + "!");
-                user.showMenu(); // polymorphism: Admin, Doctor or Patient menu
-                Format.info("You have been logged out.");
-                return;
+                user = AUTH.login(username, password);
+                isLoggingIn = false;
             } catch (LoginFailedException e) {
                 int left = MAX_LOGIN_ATTEMPTS - attempt;
                 Format.error(e.getMessage() + (left > 0 ? " " + left + " attempt(s) left." : ""));
+                isLoggingIn = left > 0;
             }
         }
-        Format.error("Too many failed attempts. Returning to the main menu.");
+        if (user == null) {
+            Format.error("Too many failed attempts. Returning to the main menu.");
+            return;
+        }
+        if (user.isMustChangePassword() && !forcePasswordChange(user)) {
+            return;
+        }
+        Format.success("Login successful. Welcome, " + user.getDisplayName() + "!");
+        user.showMenu(); // polymorphism: Admin, Doctor or Patient menu
+        Format.info("You have been logged out.");
     }
 
     /** Accounts created by an admin (and the default admin) must set their own password first. */
     private static boolean forcePasswordChange(User user) {
         Format.info("You are using a temporary password. Please set a new password to continue.");
         Prompts.printPasswordRules();
-        while (true) {
+        boolean isChanged = false;
+        boolean isAsking = true;
+        while (isAsking) {
             try {
                 String newPassword = Prompts.readNewPassword(user.getUsername(), "New password");
                 AUTH.setNewPassword(user, newPassword, newPassword);
                 Format.success("Password updated.");
-                return true;
+                isChanged = true;
+                isAsking = false;
             } catch (InvalidInputException e) {
                 Format.error(e.getMessage());
             } catch (OperationCancelledException e) {
                 Format.info("Password not changed. You need to change it before using the system.");
-                return false;
+                isAsking = false;
             }
         }
+        return isChanged;
     }
 
     private static void register() {

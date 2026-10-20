@@ -110,23 +110,15 @@ public final class HospitalData {
         int lineNumber = 0;
         int skipped = 0;
         try (BufferedReader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
-            String line;
-            while ((line = reader.readLine()) != null) {
+            String line = reader.readLine();
+            boolean hasMoreLines = line != null;
+            while (hasMoreLines) {
                 lineNumber++;
-                if (line.trim().isEmpty()) {
-                    continue;
-                }
-                String[] fields = RecordFormat.split(line);
-                if (fields.length < minFields || fields.length > maxFields) {
-                    skipped++;
-                    continue;
-                }
-                try {
-                    target.add(parser.apply(fields));
-                } catch (RuntimeException e) {
-                    // A corrupted line (bad date, number, etc.) should not stop the whole program.
+                if (!line.trim().isEmpty() && !addRecord(line, minFields, maxFields, parser, target)) {
                     skipped++;
                 }
+                line = reader.readLine();
+                hasMoreLines = line != null;
             }
         } catch (IOException e) {
             System.out.println("[!] Could not read " + fileName + ": " + e.getMessage());
@@ -134,6 +126,22 @@ public final class HospitalData {
         if (skipped > 0) {
             System.out.println("[!] " + skipped + " invalid line(s) in " + fileName + " were skipped (" + lineNumber
                     + " line(s) read).");
+        }
+    }
+
+    /** Parses one saved line into the list. Returns false if the line is invalid. */
+    private <T> boolean addRecord(String line, int minFields, int maxFields, Function<String[], T> parser,
+                                  List<T> target) {
+        String[] fields = RecordFormat.split(line);
+        if (fields.length < minFields || fields.length > maxFields) {
+            return false;
+        }
+        try {
+            target.add(parser.apply(fields));
+            return true;
+        } catch (RuntimeException e) {
+            // A corrupted line (bad date, number, etc.) should not stop the whole program.
+            return false;
         }
     }
 

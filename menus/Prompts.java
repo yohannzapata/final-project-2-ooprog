@@ -3,7 +3,6 @@ package menus;
 import data.HospitalData;
 import exceptions.DuplicateRecordException;
 import exceptions.InvalidInputException;
-import exceptions.OperationCancelledException;
 import exceptions.RecordNotFoundException;
 import models.Doctor;
 import models.Patient;
@@ -29,14 +28,18 @@ public final class Prompts {
 
     /** Keeps asking for an ID until an existing (and allowed) record is entered. */
     public static <T> T select(String prompt, Finder<T> finder) {
-        while (true) {
+        T record = null;
+        boolean isFound = false;
+        while (!isFound) {
             String id = InputHelper.readId(prompt);
             try {
-                return finder.find(id);
+                record = finder.find(id);
+                isFound = true;
             } catch (RecordNotFoundException e) {
                 Format.error(e.getMessage());
             }
         }
+        return record;
     }
 
     public static Patient selectPatient() {
@@ -49,37 +52,39 @@ public final class Prompts {
 
     /** Asks for a new password twice and checks the strength rules. */
     public static String readNewPassword(String username, String label) {
-        while (true) {
-            String password = InputHelper.readPassword(label + ": ");
+        String password = "";
+        boolean isAccepted = false;
+        while (!isAccepted) {
+            password = InputHelper.readPassword(label + ": ");
             try {
                 Validator.validatePassword(password, username);
+                String confirm = InputHelper.readPassword("Confirm " + label.toLowerCase() + ": ");
+                if (!password.equals(confirm)) {
+                    throw new InvalidInputException("Passwords do not match. Please try again.");
+                }
+                isAccepted = true;
             } catch (InvalidInputException e) {
                 Format.error(e.getMessage());
-                continue;
             }
-            String confirm = InputHelper.readPassword("Confirm " + label.toLowerCase() + ": ");
-            if (!password.equals(confirm)) {
-                Format.error("Passwords do not match. Please try again.");
-                continue;
-            }
-            return password;
         }
+        return password;
     }
 
     public static String readNewUsername() {
         AuthService auth = new AuthService();
         System.out.println("Username: 4-20 characters, letters/numbers/period/underscore, must start with a letter.");
-        while (true) {
-            String input = InputHelper.readLine("Username: ");
-            if (input.trim().equalsIgnoreCase(InputHelper.CANCEL_WORD)) {
-                throw new OperationCancelledException();
-            }
+        String username = "";
+        boolean isAccepted = false;
+        while (!isAccepted) {
+            String input = InputHelper.read("Username: ", s -> s);
             try {
-                return auth.checkNewUsername(input);
+                username = auth.checkNewUsername(input);
+                isAccepted = true;
             } catch (InvalidInputException | DuplicateRecordException e) {
                 Format.error(e.getMessage());
             }
         }
+        return username;
     }
 
     /** Change password from any role's menu. The current password is asked first. */
