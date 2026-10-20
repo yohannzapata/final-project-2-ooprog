@@ -283,9 +283,11 @@ public class DoctorMenu extends Menu {
         }
         System.out.println("Patient: " + data.patientName(a.getPatientId()) + " | Consultation: " + Format.date(a.getDate()));
         String diagnosis = InputHelper.readText("Diagnosis: ", "Diagnosis", 200, true);
-        String prescription = InputHelper.readText("Prescription (e.g. Paracetamol 500mg, 1 tab every 6 hrs; "
-                + "Enter if none): ", "Prescription", 300, false);
-        String notes = InputHelper.readText("Notes / advice (optional): ", "Notes", 500, false);
+        String prescription = InputHelper.read("Prescription (e.g. Paracetamol 500mg, 1 tab every 6 hrs; "
+                + "type \"none\" if none): ",
+                s -> InputHelper.isNone(s) ? "" : Validator.validateText(s, "Prescription", 300, true));
+        String notes = InputHelper.read("Notes / advice (type \"none\" if none): ",
+                s -> InputHelper.isNone(s) ? "" : Validator.validateText(s, "Notes", 500, true));
 
         MedicalRecord record = new MedicalRecord(data.nextMedicalRecordId(), a.getId(), a.getPatientId(),
                 doctor.getId(), a.getDate(), diagnosis, prescription.isEmpty() ? "None" : prescription, notes);
@@ -305,13 +307,13 @@ public class DoctorMenu extends Menu {
     private void updateRecord() {
         MedicalRecord r = Prompts.select("Enter record ID: ", this::findOwnRecord);
         printRecord(r);
-        System.out.println("Press Enter to keep the current value.");
+        System.out.println("Type \"" + InputHelper.KEEP_WORD + "\" to keep the current value.");
         String diagnosis = InputHelper.readOptional("Diagnosis: ",
                 s -> Validator.validateText(s, "Diagnosis", 200, true));
         String prescription = InputHelper.readOptional("Prescription: ",
                 s -> Validator.validateText(s, "Prescription", 300, true));
         String notes = InputHelper.readOptional("Notes (type \"none\" to clear): ",
-                s -> s.trim().equalsIgnoreCase("none") ? "" : Validator.validateText(s, "Notes", 500, true));
+                s -> InputHelper.isNone(s) ? "" : Validator.validateText(s, "Notes", 500, true));
         if (diagnosis == null && prescription == null && notes == null) {
             Format.info("No changes made.");
             return;

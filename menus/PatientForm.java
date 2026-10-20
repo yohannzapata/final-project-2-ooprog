@@ -36,8 +36,8 @@ public final class PatientForm {
 
         System.out.println("Personal information");
         String firstName = InputHelper.read("First name: ", s -> Validator.validateName(s, "First name"));
-        String middleName = InputHelper.read("Middle name (press Enter if none): ",
-                s -> Validator.validateOptionalName(s, "Middle name"));
+        String middleName = InputHelper.read("Middle name (type \"none\" if none): ",
+                s -> InputHelper.isNone(s) ? "" : Validator.validateName(s, "Middle name"));
         String lastName = InputHelper.read("Last name: ", s -> Validator.validateName(s, "Last name"));
         LocalDate birthdate = InputHelper.read("Birthdate (yyyy-MM-dd): ",
                 s -> Validator.validateBirthdate(Validator.parseDate(s, "Birthdate")));
@@ -52,7 +52,8 @@ public final class PatientForm {
 
         String sex = InputHelper.read("Sex (M/F): ", Validator::validateSex);
         String contact = InputHelper.read("Mobile number (09XXXXXXXXX): ", Validator::validateContactNumber);
-        String email = InputHelper.read("Email (optional, press Enter to skip): ", s -> Validator.validateEmail(s, false));
+        String email = InputHelper.read("Email (type \"none\" if none): ",
+                s -> InputHelper.isNone(s) ? "" : Validator.validateEmail(s, true));
         String address = InputHelper.read("Address (street, barangay, city): ", Validator::validateAddress);
 
         String seniorId = "";
@@ -94,7 +95,7 @@ public final class PatientForm {
      */
     public static void update(Patient patient, boolean byAdmin) throws DuplicateRecordException {
         HospitalData data = HospitalData.getInstance();
-        System.out.println("Press Enter to keep the current value.");
+        System.out.println("Type \"" + InputHelper.KEEP_WORD + "\" to keep the current value.");
 
         String newFirst = patient.getFirstName();
         String newMiddle = patient.getMiddleName();
@@ -105,7 +106,7 @@ public final class PatientForm {
             String first = InputHelper.readOptional("First name [" + patient.getFirstName() + "]: ",
                     s -> Validator.validateName(s, "First name"));
             String middle = InputHelper.readOptional("Middle name [" + Format.orDash(patient.getMiddleName())
-                    + "] (type \"none\" to remove): ", s -> isNone(s) ? "" : Validator.validateName(s, "Middle name"));
+                    + "] (type \"none\" to remove): ", s -> InputHelper.isNone(s) ? "" : Validator.validateName(s, "Middle name"));
             String last = InputHelper.readOptional("Last name [" + patient.getLastName() + "]: ",
                     s -> Validator.validateName(s, "Last name"));
             LocalDate birth = InputHelper.readOptional("Birthdate [" + patient.getBirthdate() + "]: ",
@@ -124,13 +125,13 @@ public final class PatientForm {
         String contact = InputHelper.readOptional("Mobile number [" + patient.getContactNumber() + "]: ",
                 Validator::validateContactNumber);
         String email = InputHelper.readOptional("Email [" + Format.orDash(patient.getEmail())
-                + "] (type \"none\" to remove): ", s -> isNone(s) ? "" : Validator.validateEmail(s, true));
+                + "] (type \"none\" to remove): ", s -> InputHelper.isNone(s) ? "" : Validator.validateEmail(s, true));
         String address = InputHelper.readOptional("Address [" + patient.getAddress() + "]: ", Validator::validateAddress);
 
         String senior = null;
         if (seniorAge) {
             senior = InputHelper.readOptional("Senior Citizen ID [" + Format.orDash(patient.getSeniorCitizenId())
-                    + "] (type \"none\" to remove): ", s -> isNone(s) ? "" : Validator.validateSeniorId(s));
+                    + "] (type \"none\" to remove): ", s -> InputHelper.isNone(s) ? "" : Validator.validateSeniorId(s));
         } else if (patient.hasSeniorCitizenId()) {
             // Birthdate was corrected and the patient is no longer 60+.
             senior = "";
@@ -138,10 +139,10 @@ public final class PatientForm {
         }
         String pwd = InputHelper.readOptional("PWD ID [" + Format.orDash(patient.getPwdId())
                 + "] (type \"none\" to remove): ",
-                s -> isNone(s) ? "" : checkUniqueId(Validator.validatePwdId(s), patient.getId(), true));
+                s -> InputHelper.isNone(s) ? "" : checkUniqueId(Validator.validatePwdId(s), patient.getId(), true));
         String philHealth = InputHelper.readOptional("PhilHealth number [" + Format.orDash(patient.getPhilHealthNumber())
                 + "] (type \"none\" to remove): ",
-                s -> isNone(s) ? "" : checkUniqueId(Validator.validatePhilHealthNumber(s), patient.getId(), false));
+                s -> InputHelper.isNone(s) ? "" : checkUniqueId(Validator.validatePhilHealthNumber(s), patient.getId(), false));
 
         // Apply everything only after all inputs were accepted.
         patient.setFirstName(newFirst);
@@ -168,10 +169,6 @@ public final class PatientForm {
             patient.setPhilHealthNumber(philHealth);
         }
         data.save();
-    }
-
-    private static boolean isNone(String input) {
-        return input.trim().equalsIgnoreCase("none");
     }
 
     /** A PWD ID or PhilHealth number belongs to exactly one person. */

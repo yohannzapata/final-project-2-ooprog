@@ -59,14 +59,14 @@ public class RoomManagementMenu extends Menu {
     }
 
     private void addRoom() throws DuplicateRecordException {
-        String number = InputHelper.read("Room number (e.g. 201 or ICU-01): ", Validator::validateRoomNumber);
+        String number = InputHelper.read("Room number (e.g. 201 or ICU-1): ", Validator::validateRoomNumber);
         for (Room r : data.getRooms()) {
             if (r.getRoomNumber().equalsIgnoreCase(number)) {
                 throw new DuplicateRecordException("Room " + number + " already exists.");
             }
         }
         Room.Type type = readType();
-        BigDecimal rate = InputHelper.readAmount("Daily rate (PHP): ", "Daily rate", MAX_DAILY_RATE);
+        BigDecimal rate = InputHelper.readAmount("Daily rate (" + Format.PESO + "): ", "Daily rate", MAX_DAILY_RATE);
         Room room = new Room(number, type, rate);
         data.getRooms().add(room);
         data.save();
@@ -85,10 +85,11 @@ public class RoomManagementMenu extends Menu {
 
     private void updateRoom() throws InvalidInputException {
         Room room = Prompts.select("Enter room number: ", data::findRoom);
-        System.out.println("Updating room " + room.getRoomNumber() + ". Press Enter to keep the current value.");
+        System.out.println("Updating room " + room.getRoomNumber() + ". Type \"" + InputHelper.KEEP_WORD
+                + "\" to keep the current value.");
         System.out.println("Current type: " + room.getType().getLabel());
         Room.Type type = InputHelper.readYesNo("Change room type?") ? readType() : null;
-        BigDecimal rate = InputHelper.readOptional("Daily rate [" + room.getDailyRate() + "]: ",
+        BigDecimal rate = InputHelper.readOptional("Daily rate [" + Format.money(room.getDailyRate()) + "]: ",
                 s -> Validator.validateAmount(s, "Daily rate", MAX_DAILY_RATE));
 
         Room.Status status = null;
@@ -98,7 +99,7 @@ public class RoomManagementMenu extends Menu {
             System.out.println("Current status: " + room.getStatus().getLabel());
             System.out.println("  1. Available");
             System.out.println("  2. Under Maintenance");
-            Integer s = InputHelper.readOptional("New status (press Enter to keep): ",
+            Integer s = InputHelper.readOptional("New status (type \"" + InputHelper.KEEP_WORD + "\" to keep): ",
                     in -> Validator.validateRange(Validator.parseInt(in, "Status"), 1, 2, "Status"));
             if (s != null) {
                 status = s == 1 ? Room.Status.AVAILABLE : Room.Status.MAINTENANCE;

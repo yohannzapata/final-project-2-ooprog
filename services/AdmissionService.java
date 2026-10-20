@@ -48,7 +48,7 @@ public class AdmissionService {
         }
     }
 
-    public void validateAdmissionDate(Patient patient, LocalDate date) throws InvalidInputException {
+    public void validateAdmissionDate(Patient patient, Room room, LocalDate date) throws InvalidInputException {
         LocalDate today = LocalDate.now();
         if (date.isAfter(today)) {
             throw new InvalidInputException("Admission date cannot be in the future.");
@@ -59,13 +59,23 @@ public class AdmissionService {
         if (date.isBefore(patient.getBirthdate())) {
             throw new InvalidInputException("Admission date cannot be before the patient's birthdate.");
         }
+        // A backdated admission must not overlap an earlier stay of the same patient or in the same room.
+        for (Admission a : data.getAdmissions()) {
+            boolean samePatientOrRoom = a.getPatientId().equals(patient.getId())
+                    || a.getRoomNumber().equals(room.getRoomNumber());
+            if (samePatientOrRoom && a.isDischarged() && date.isBefore(a.getDischargeDate())) {
+                throw new InvalidInputException("Admission date overlaps admission " + a.getId() + " ("
+                        + Format.date(a.getAdmissionDate()) + " to " + Format.date(a.getDischargeDate())
+                        + "). Use " + Format.date(a.getDischargeDate()) + " or later.");
+            }
+        }
     }
 
     public Admission admit(Patient patient, Room room, LocalDate date, String reason)
             throws InvalidInputException, RoomNotAvailableException {
         checkCanAdmit(patient);
         checkRoomAvailable(room);
-        validateAdmissionDate(patient, date);
+        validateAdmissionDate(patient, room, date);
         Admission admission = new Admission(data.nextAdmissionId(), patient.getId(), room.getRoomNumber(),
                 date, reason, room.getDailyRate());
         room.setStatus(Room.Status.OCCUPIED);

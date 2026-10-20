@@ -19,12 +19,15 @@ public final class Format {
     private static final DateTimeFormatter DISPLAY_DATE = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.ENGLISH);
     private static final DateTimeFormatter DISPLAY_TIME = DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH);
 
+    /** Philippine peso sign. Written as an escape so the source compiles the same on every system. */
+    public static final String PESO = "\u20B1";
+
     private Format() {
     }
 
     public static String money(BigDecimal amount) {
         DecimalFormat df = new DecimalFormat("#,##0.00");
-        return "PHP " + df.format(amount == null ? BigDecimal.ZERO : amount);
+        return PESO + df.format(amount == null ? BigDecimal.ZERO : amount);
     }
 
     public static String date(LocalDate date) {

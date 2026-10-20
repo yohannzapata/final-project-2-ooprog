@@ -64,9 +64,8 @@ public class AppointmentManagementMenu extends Menu {
     }
 
     private void viewByDate() {
-        LocalDate date = InputHelper.readOptional("Date (yyyy-MM-dd, press Enter for today): ",
-                s -> Validator.parseDate(s, "Date"));
-        LocalDate target = date == null ? LocalDate.now() : date;
+        LocalDate target = InputHelper.read("Date (yyyy-MM-dd, or \"today\"): ",
+                s -> Validator.parseDateOrToday(s, "Date"));
         List<Appointment> result = new ArrayList<>();
         for (Appointment a : service.getAllSorted()) {
             if (a.getDate().equals(target)) {
