@@ -5,6 +5,7 @@ import exceptions.RecordNotFoundException;
 import exceptions.ScheduleConflictException;
 import models.Appointment;
 import models.Patient;
+import services.AdmissionService;
 import services.AppointmentService;
 import util.Format;
 import util.InputHelper;
@@ -20,6 +21,7 @@ import java.util.List;
 public class AppointmentManagementMenu extends Menu {
 
     private final AppointmentService service = new AppointmentService();
+    private final AdmissionService admissions = new AdmissionService();
 
     @Override
     protected String getTitle() {
@@ -37,7 +39,7 @@ public class AppointmentManagementMenu extends Menu {
     protected List<Option> getOptions() {
         boolean hasAppointments = !data.getAppointments().isEmpty();
         boolean hasUpcoming = !service.getUpcoming(data.getAppointments()).isEmpty();
-        boolean canBook = !data.getPatients().isEmpty() && !data.getDoctors().isEmpty();
+        boolean canBook = !admissions.getAdmittablePatients().isEmpty() && !data.getDoctors().isEmpty();
         List<Option> options = new ArrayList<>();
         addIf(options, hasAppointments, "View all appointments", () -> service.printTable(service.getAllSorted()));
         addIf(options, hasAppointments, "View appointments on a date", this::viewByDate);
@@ -67,9 +69,9 @@ public class AppointmentManagementMenu extends Menu {
     }
 
     private void book() throws InvalidInputException, ScheduleConflictException {
-        PatientManagementMenu.printTable(data.getPatients());
-        // An admitted patient is asked again here, before the rest of the booking is filled in.
-        Patient patient = Prompts.select("Enter patient ID: ", id -> {
+        // Admitted patients cannot book, so only the others are listed; an admitted patient's ID is
+        // asked again here, before the rest of the booking is filled in.
+        Patient patient = Prompts.choosePatient(admissions.getAdmittablePatients(), id -> {
             Patient found = data.findPatient(id);
             service.checkNotAdmitted(found);
             return found;

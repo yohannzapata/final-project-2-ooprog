@@ -55,7 +55,8 @@ You will be asked to change the password after the first login. Accounts created
 
 Menus only list what can be done right now: for example, "Delete patient" appears once there is a patient
 who can be deleted, and "Manage bills" appears once there is something to bill. Before asking for an ID, the
-program shows the matching records, and an ID that cannot be used (a paid bill, an occupied room, a patient
+program shows the matching records (or, when there are more than 15, lets you type part of a name to
+find the ID), and an ID that cannot be used (a paid bill, an occupied room, a patient
 who is already admitted) is asked again with the reason instead of ending the action.
 
 Type `back` at any prompt to cancel the current action. Empty input is never accepted: type `none` for an
@@ -86,7 +87,8 @@ record, and `today` for today's date.
   Only past appointments can be marked completed/no-show, and past appointments can no longer be cancelled.
   Times can be typed as `9:00` or `09:00`.
 - **Medical records:** one record per completed appointment, written by the doctor of that appointment.
-- **Rooms and admissions:** only available rooms can be used or deleted, one active admission per patient,
+- **Rooms and admissions:** only available rooms can be used; a room can only be deleted while it is
+  available and has no admission records (set it to Under Maintenance instead), one active admission per patient,
   discharge date cannot be before the admission date, and a backdated admission cannot overlap an earlier
   stay of the same patient or in the same room. Admitted patients cannot book or reschedule appointments. A same-day discharge is billed as 1 day.
 - **Billing:** consultation (fee at time of booking) or admission (daily rate × days). Regular, Senior

@@ -1,6 +1,7 @@
 package menus;
 
 import exceptions.InvalidInputException;
+import models.Admission;
 import models.Room;
 import services.AdmissionService;
 import util.Format;
@@ -37,14 +38,13 @@ public class RoomManagementMenu extends Menu {
     @Override
     protected List<Option> getOptions() {
         boolean hasRooms = !data.getRooms().isEmpty();
-        // Only available rooms can be deleted; occupied rooms and rooms under maintenance cannot.
         boolean hasAvailable = !admissions.getAvailableRooms().isEmpty();
         List<Option> options = new ArrayList<>();
         options.add(new Option("Add room", this::addRoom));
         addIf(options, hasRooms, "View all rooms", () -> printTable(data.getRooms()));
         addIf(options, hasAvailable, "View available rooms", () -> printTable(admissions.getAvailableRooms()));
         addIf(options, hasRooms, "Update room", this::updateRoom);
-        addIf(options, hasAvailable, "Delete room", this::deleteRoom);
+        addIf(options, !getDeletableRooms().isEmpty(), "Delete room", this::deleteRoom);
         return options;
     }
 
@@ -122,14 +122,43 @@ public class RoomManagementMenu extends Menu {
         }
     }
 
+    /**
+     * Only available rooms that were never used can be deleted. A room with admission records is kept,
+     * otherwise a new room with the same number would look like it was part of those old stays.
+     * Returns null if the room can be deleted.
+     */
+    private String getDeleteBlocker(Room room) {
+        if (!room.isAvailable()) {
+            return "Room " + room.getRoomNumber() + " is " + room.getStatus().getLabel().toLowerCase()
+                    + ". Only available rooms can be deleted.";
+        }
+        for (Admission a : data.getAdmissions()) {
+            if (a.getRoomNumber().equals(room.getRoomNumber())) {
+                return "Room " + room.getRoomNumber() + " has admission records and cannot be deleted. "
+                        + "Set it to Under Maintenance instead if it should no longer be used.";
+            }
+        }
+        return null;
+    }
+
+    private List<Room> getDeletableRooms() {
+        List<Room> result = new ArrayList<>();
+        for (Room r : data.getRooms()) {
+            if (getDeleteBlocker(r) == null) {
+                result.add(r);
+            }
+        }
+        return result;
+    }
+
     private void deleteRoom() {
-        System.out.println("Only available rooms can be deleted:");
-        printTable(admissions.getAvailableRooms());
+        System.out.println("Only available rooms without admission records can be deleted:");
+        printTable(getDeletableRooms());
         Room room = Prompts.select("Enter room number: ", number -> {
             Room found = data.findRoom(number);
-            if (!found.isAvailable()) {
-                throw new InvalidInputException("Room " + found.getRoomNumber() + " is "
-                        + found.getStatus().getLabel().toLowerCase() + ". Only available rooms can be deleted.");
+            String blocker = getDeleteBlocker(found);
+            if (blocker != null) {
+                throw new InvalidInputException(blocker);
             }
             return found;
         });
