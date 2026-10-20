@@ -98,13 +98,15 @@ public final class InputHelper {
         return input.trim().equalsIgnoreCase(NONE_WORD);
     }
 
+    /** Reads a menu choice. "back" counts as 0, the menu's Back/Logout/Exit option. */
     public static int readMenuChoice(int min, int max) {
         int choice = 0;
         boolean isValidChoice = false;
         while (!isValidChoice) {
             String input = readLine("Enter your choice: ").trim();
             try {
-                choice = Validator.validateRange(Validator.parseInt(input, "Choice"), min, max, "Choice");
+                boolean isBack = input.equalsIgnoreCase(CANCEL_WORD) && min == 0;
+                choice = isBack ? 0 : Validator.validateRange(Validator.parseInt(input, "Choice"), min, max, "Choice");
                 isValidChoice = true;
             } catch (InvalidInputException e) {
                 Format.error(input.isEmpty() ? "Please enter a choice." : e.getMessage());

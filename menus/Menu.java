@@ -86,7 +86,7 @@ public abstract class Menu {
             System.out.printf("%2d. %s%n", i + 1, options.get(i).label);
         }
         System.out.printf("%2d. %s%n", 0, getExitLabel());
-        System.out.println("Tip: type \"" + InputHelper.CANCEL_WORD + "\" at any prompt to cancel.");
+        System.out.println("Tip: type \"" + InputHelper.CANCEL_WORD + "\" at any prompt to cancel or go back.");
     }
 
     private void runOption(Option option) {
