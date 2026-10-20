@@ -210,8 +210,7 @@ public class DoctorMenu extends Menu {
     }
 
     private void viewPatientHistory() {
-        PatientManagementMenu.printTable(getMyPatients());
-        Patient patient = Prompts.select("Enter patient ID: ", this::findOwnPatient);
+        Patient patient = Prompts.choosePatient(getMyPatients(), this::findOwnPatient);
         PatientForm.printProfile(patient);
         Format.subHeader("Appointments with you");
         List<Appointment> list = new ArrayList<>();

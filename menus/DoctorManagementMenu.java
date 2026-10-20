@@ -139,13 +139,11 @@ public class DoctorManagementMenu extends Menu {
     }
 
     private void viewDetails() {
-        printTable(data.getDoctors());
-        printDetails(Prompts.selectDoctor());
+        printDetails(Prompts.chooseDoctor());
     }
 
     private void updateDoctor() {
-        printTable(data.getDoctors());
-        Doctor doctor = Prompts.selectDoctor();
+        Doctor doctor = Prompts.chooseDoctor();
         System.out.println("Updating " + doctor.getDisplayName() + ". Type \"" + InputHelper.KEEP_WORD
                 + "\" to keep the current value.");
         String first = InputHelper.readOptional("First name [" + doctor.getFirstName() + "]: ",
@@ -263,8 +261,7 @@ public class DoctorManagementMenu extends Menu {
 
     private void deleteDoctor() {
         System.out.println("Only doctors without scheduled appointments can be deleted:");
-        printTable(getDeletableDoctors());
-        Doctor doctor = Prompts.select("Enter doctor ID: ", id -> {
+        Doctor doctor = Prompts.chooseDoctor(getDeletableDoctors(), id -> {
             Doctor found = data.findDoctor(id);
             String blocker = getDeleteBlocker(found);
             if (blocker != null) {

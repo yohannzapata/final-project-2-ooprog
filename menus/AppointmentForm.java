@@ -33,8 +33,7 @@ public final class AppointmentForm {
             Format.info("There are no doctors in the system yet.");
             return;
         }
-        DoctorManagementMenu.printTable(data.getDoctors());
-        Doctor doctor = Prompts.selectDoctor();
+        Doctor doctor = Prompts.chooseDoctor();
         System.out.println("Schedule of " + doctor.getDisplayName() + ": " + doctor.getScheduleText());
         System.out.println("Consultation fee: " + Format.money(doctor.getConsultationFee()));
 

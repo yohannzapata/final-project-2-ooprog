@@ -77,13 +77,11 @@ public class PatientManagementMenu extends Menu {
     }
 
     private void viewDetails() {
-        printTable(data.getPatients());
-        PatientForm.printProfile(Prompts.selectPatient());
+        PatientForm.printProfile(Prompts.choosePatient());
     }
 
     private void updatePatient() {
-        printTable(data.getPatients());
-        Patient patient = Prompts.selectPatient();
+        Patient patient = Prompts.choosePatient();
         System.out.println("Updating " + patient.getFullName() + " (" + patient.getId() + ")");
         PatientForm.update(patient, true);
         Format.success("Patient record updated.");
@@ -126,8 +124,7 @@ public class PatientManagementMenu extends Menu {
 
     private void deletePatient() {
         System.out.println("Only patients without appointments, admissions, bills or records can be deleted:");
-        printTable(getDeletablePatients());
-        Patient patient = Prompts.select("Enter patient ID: ", id -> {
+        Patient patient = Prompts.choosePatient(getDeletablePatients(), id -> {
             Patient found = data.findPatient(id);
             String reason = getHistoryReason(found);
             if (reason != null) {

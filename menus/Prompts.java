@@ -12,6 +12,13 @@ import util.Format;
 import util.InputHelper;
 import util.Validator;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.regex.Pattern;
+
 /**
  * Prompts that are used by more than one menu.
  */
@@ -19,6 +26,12 @@ public final class Prompts {
 
     /** Tries allowed for the current password before the change is stopped. */
     public static final int MAX_PASSWORD_ATTEMPTS = 3;
+
+    /** Longer lists are not printed in full before asking for an ID; the user searches by name instead. */
+    public static final int LIST_LIMIT = 15;
+
+    // IDs look like P0001 or D0001; names never contain digits, so the two cannot be confused.
+    private static final Pattern ID_FORMAT = Pattern.compile("^[A-Za-z]{1,3}\\d+$");
 
     /**
      * Looks up a record by the typed ID. Throws if it does not exist, or InvalidInputException
@@ -54,12 +67,73 @@ public final class Prompts {
         return record;
     }
 
-    public static Patient selectPatient() {
-        return select("Enter patient ID: ", HospitalData.getInstance()::findPatient);
+    /**
+     * Shows the patients to choose from and asks for an ID. Typing part of a name instead lists the
+     * matching patients, so a long list does not have to be scrolled through.
+     */
+    public static Patient choosePatient(List<Patient> candidates, Finder<Patient> finder) {
+        return choose("patient", candidates, Patient::getCompleteName, PatientManagementMenu::printTable, finder);
     }
 
-    public static Doctor selectDoctor() {
-        return select("Enter doctor ID: ", HospitalData.getInstance()::findDoctor);
+    public static Doctor chooseDoctor(List<Doctor> candidates, Finder<Doctor> finder) {
+        return choose("doctor", candidates, Doctor::getCompleteName, DoctorManagementMenu::printTable, finder);
+    }
+
+    public static Patient choosePatient() {
+        HospitalData data = HospitalData.getInstance();
+        return choosePatient(data.getPatients(), data::findPatient);
+    }
+
+    public static Doctor chooseDoctor() {
+        HospitalData data = HospitalData.getInstance();
+        return chooseDoctor(data.getDoctors(), data::findDoctor);
+    }
+
+    private static <T> T choose(String noun, List<T> candidates, Function<T, String> nameOf,
+                                Consumer<List<T>> printer, Finder<T> finder) {
+        if (candidates.size() <= LIST_LIMIT) {
+            printer.accept(candidates);
+        } else {
+            Format.info(candidates.size() + " " + noun + "s on file. Type part of a name to find the ID.");
+        }
+        T record = null;
+        boolean isFound = false;
+        boolean isHintShown = false;
+        while (!isFound) {
+            String input = InputHelper.read("Enter " + noun + " ID or name: ", String::trim);
+            try {
+                if (ID_FORMAT.matcher(input).matches()) {
+                    record = finder.find(input.toUpperCase(Locale.ROOT));
+                    isFound = true;
+                } else {
+                    printNameMatches(noun, candidates, nameOf, printer, input);
+                }
+            } catch (RecordNotFoundException | InvalidInputException e) {
+                Format.error(e.getMessage());
+                if (!isHintShown) {
+                    Format.info("Try again with one from the list, or type \"" + InputHelper.CANCEL_WORD
+                            + "\" to cancel.");
+                    isHintShown = true;
+                }
+            }
+        }
+        return record;
+    }
+
+    private static <T> void printNameMatches(String noun, List<T> candidates, Function<T, String> nameOf,
+                                             Consumer<List<T>> printer, String input) throws InvalidInputException {
+        String keyword = input.toLowerCase(Locale.ROOT);
+        List<T> matches = new ArrayList<>();
+        for (T item : candidates) {
+            if (nameOf.apply(item).toLowerCase(Locale.ROOT).contains(keyword)) {
+                matches.add(item);
+            }
+        }
+        if (matches.isEmpty()) {
+            throw new InvalidInputException("No " + noun + " in the list matches \"" + input + "\".");
+        }
+        printer.accept(matches);
+        Format.info("Enter the ID of the " + noun + " you mean.");
     }
 
     /** Asks for a new password twice and checks the strength rules. */
