@@ -67,14 +67,14 @@ public class DoctorManagementMenu extends Menu {
 
     private void addDoctor() {
         String firstName = InputHelper.read("First name: ", s -> Validator.validateName(s, "First name"));
-        String middleName = InputHelper.read("Middle name (press Enter if none): ",
-                s -> Validator.validateOptionalName(s, "Middle name"));
+        String middleName = InputHelper.read("Middle name (type \"none\" if none): ",
+                s -> InputHelper.isNone(s) ? "" : Validator.validateName(s, "Middle name"));
         String lastName = InputHelper.read("Last name: ", s -> Validator.validateName(s, "Last name"));
         String license = InputHelper.read("PRC license number (7 digits): ", s -> checkUniqueLicense(
                 Validator.validateLicenseNumber(s), null));
         String specialization = InputHelper.read("Specialization (e.g. Pediatrics): ", Validator::validateSpecialization);
         String contact = InputHelper.read("Mobile number (09XXXXXXXXX): ", Validator::validateContactNumber);
-        BigDecimal fee = InputHelper.readAmount("Consultation fee (PHP): ", "Consultation fee", MAX_FEE);
+        BigDecimal fee = InputHelper.readAmount("Consultation fee (" + Format.PESO + "): ", "Consultation fee", MAX_FEE);
         Set<DayOfWeek> days = InputHelper.read("Available days (e.g. MON,WED,FRI or MON-FRI): ", Validator::parseDays);
         LocalTime start = InputHelper.read("Clinic start time (HH:mm): ", s -> Validator.parseTime(s, "Start time"));
         LocalTime end = InputHelper.read("Clinic end time (HH:mm): ", s -> validateEndTime(start, Validator.parseTime(s, "End time")));
@@ -135,19 +135,20 @@ public class DoctorManagementMenu extends Menu {
 
     private void updateDoctor() throws InvalidInputException {
         Doctor doctor = Prompts.selectDoctor();
-        System.out.println("Updating " + doctor.getDisplayName() + ". Press Enter to keep the current value.");
+        System.out.println("Updating " + doctor.getDisplayName() + ". Type \"" + InputHelper.KEEP_WORD
+                + "\" to keep the current value.");
         String first = InputHelper.readOptional("First name [" + doctor.getFirstName() + "]: ",
                 s -> Validator.validateName(s, "First name"));
         String middle = InputHelper.readOptional("Middle name [" + Format.orDash(doctor.getMiddleName())
                 + "] (type \"none\" to remove): ",
-                s -> s.trim().equalsIgnoreCase("none") ? "" : Validator.validateName(s, "Middle name"));
+                s -> InputHelper.isNone(s) ? "" : Validator.validateName(s, "Middle name"));
         String last = InputHelper.readOptional("Last name [" + doctor.getLastName() + "]: ",
                 s -> Validator.validateName(s, "Last name"));
         String spec = InputHelper.readOptional("Specialization [" + doctor.getSpecialization() + "]: ",
                 Validator::validateSpecialization);
         String contact = InputHelper.readOptional("Mobile number [" + doctor.getContactNumber() + "]: ",
                 Validator::validateContactNumber);
-        BigDecimal fee = InputHelper.readOptional("Consultation fee [" + doctor.getConsultationFee() + "]: ",
+        BigDecimal fee = InputHelper.readOptional("Consultation fee [" + Format.money(doctor.getConsultationFee()) + "]: ",
                 s -> Validator.validateAmount(s, "Consultation fee", MAX_FEE));
         Set<DayOfWeek> days = InputHelper.readOptional("Available days [" + Format.days(doctor.getAvailableDays())
                 + "]: ", Validator::parseDays);
@@ -203,15 +204,18 @@ public class DoctorManagementMenu extends Menu {
 
     private void deleteDoctor() throws InvalidInputException {
         Doctor doctor = Prompts.selectDoctor();
-        int upcoming = 0;
+        // Past appointments that are still "Scheduled" also count: only this doctor can mark them
+        // completed or no-show, so deleting the doctor would leave them stuck.
+        int scheduled = 0;
         for (Appointment a : data.getAppointments()) {
-            if (a.getDoctorId().equals(doctor.getId()) && a.isUpcoming()) {
-                upcoming++;
+            if (a.getDoctorId().equals(doctor.getId()) && a.isScheduled()) {
+                scheduled++;
             }
         }
-        if (upcoming > 0) {
-            throw new InvalidInputException(doctor.getDisplayName() + " has " + upcoming
-                    + " upcoming appointment(s) and cannot be deleted.");
+        if (scheduled > 0) {
+            throw new InvalidInputException(doctor.getDisplayName() + " has " + scheduled
+                    + " scheduled appointment(s) and cannot be deleted. Cancel them, or have the doctor mark "
+                    + "past ones as completed or no-show first.");
         }
         if (!InputHelper.confirm("Delete " + doctor.getDisplayName() + " (" + doctor.getId() + ")?")) {
             Format.info("Delete cancelled.");

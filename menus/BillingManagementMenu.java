@@ -153,7 +153,7 @@ public class BillingManagementMenu extends Menu {
         if (type != DiscountType.PHILHEALTH) {
             return BigDecimal.ZERO;
         }
-        return InputHelper.readAmount("PhilHealth deduction (PHP, max " + Format.money(gross) + "): ",
+        return InputHelper.readAmount("PhilHealth deduction (max " + Format.money(gross) + "): ",
                 "PhilHealth deduction", gross);
     }
 

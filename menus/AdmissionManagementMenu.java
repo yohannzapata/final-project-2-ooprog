@@ -82,14 +82,11 @@ public class AdmissionManagementMenu extends Menu {
         Room room = Prompts.select("Enter room number: ", data::findRoom);
         service.checkRoomAvailable(room);
 
-        LocalDate date = InputHelper.readOptional("Admission date (yyyy-MM-dd, press Enter for today): ", s -> {
-            LocalDate d = Validator.parseDate(s, "Admission date");
-            service.validateAdmissionDate(patient, d);
+        LocalDate date = InputHelper.read("Admission date (yyyy-MM-dd, or \"today\"): ", s -> {
+            LocalDate d = Validator.parseDateOrToday(s, "Admission date");
+            service.validateAdmissionDate(patient, room, d);
             return d;
         });
-        if (date == null) {
-            date = LocalDate.now();
-        }
         String reason = InputHelper.readText("Reason for admission: ", "Reason", 150, true);
 
         Admission admission = service.admit(patient, room, date, reason);
@@ -113,14 +110,11 @@ public class AdmissionManagementMenu extends Menu {
                     + Format.date(admission.getDischargeDate()) + ".");
         }
         service.printDetails(admission);
-        LocalDate date = InputHelper.readOptional("Discharge date (yyyy-MM-dd, press Enter for today): ", s -> {
-            LocalDate d = Validator.parseDate(s, "Discharge date");
+        LocalDate date = InputHelper.read("Discharge date (yyyy-MM-dd, or \"today\"): ", s -> {
+            LocalDate d = Validator.parseDateOrToday(s, "Discharge date");
             service.validateDischargeDate(admission, d);
             return d;
         });
-        if (date == null) {
-            date = LocalDate.now();
-        }
         if (!InputHelper.confirm("Discharge " + data.patientName(admission.getPatientId()) + " on " + Format.date(date) + "?")) {
             Format.info("Discharge cancelled.");
             return;

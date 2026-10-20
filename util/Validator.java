@@ -34,6 +34,12 @@ public final class Validator {
     // Letters (including accented letters like n with tilde), optionally separated by a space, hyphen,
     // apostrophe or period, e.g. "Ma. Clara", "Dela Cruz-Santos", "O'Brien".
     private static final Pattern NAME = Pattern.compile("^\\p{L}+(?:(?:\\. |[ '\\-.])\\p{L}+)*\\.?$");
+    // Generational suffixes written as Roman numerals, e.g. "Jose Rizal III". Digits are never allowed in names.
+    private static final Pattern ROMAN_SUFFIX = Pattern.compile("^(?i)(II|III|IV|V|VI|VII|VIII|IX|X)$");
+    // Whole numbers without leading zeros: 0, 7, 120 (not 007 or +7).
+    private static final Pattern WHOLE_NUMBER = Pattern.compile("^(0|[1-9]\\d{0,8})$");
+    // Peso amounts without leading zeros: 1500, 1,500, 1500.50, 0.50 (not 01500, 1e3 or .5).
+    private static final Pattern AMOUNT = Pattern.compile("^(0|[1-9]\\d*|[1-9]\\d{0,2}(,\\d{3})+)(\\.\\d{1,2})?$");
     private static final Pattern USERNAME = Pattern.compile("^[A-Za-z][A-Za-z0-9._]{2,18}[A-Za-z0-9]$");
     private static final Pattern MOBILE = Pattern.compile("^09\\d{9}$");
     private static final Pattern EMAIL = Pattern.compile(
@@ -43,6 +49,8 @@ public final class Validator {
     private static final Pattern SENIOR_ID = Pattern.compile("^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$");
     private static final Pattern PRC_LICENSE = Pattern.compile("^\\d{7}$");
     private static final Pattern ROOM_NUMBER = Pattern.compile("^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)?$");
+    // A number inside a room number must not start with 0, e.g. "ICU-01", "007" or "0".
+    private static final Pattern LEADING_ZERO = Pattern.compile("(?<!\\d)0");
     private static final Pattern SPECIALIZATION = Pattern.compile("^\\p{L}+(?:[ \\-&/,]+\\p{L}+)*$");
 
     private Validator() {
@@ -80,24 +88,37 @@ public final class Validator {
         if (name.length() < 2 || name.length() > 50) {
             throw new InvalidInputException(field + " must be 2 to 50 characters long.");
         }
+        if (name.matches(".*\\d.*")) {
+            throw new InvalidInputException(field + " must not contain numbers. Write a suffix in Roman numerals "
+                    + "(e.g. III instead of 3rd).");
+        }
         if (!NAME.matcher(name).matches()) {
             throw new InvalidInputException(field
                     + " may only contain letters, spaces, hyphens, apostrophes and periods.");
         }
+        // "Vi" is a real given name, so only numerals that cannot be names are rejected on their own.
+        if (name.matches("(?i)^(II|III|IV|VII|VIII|IX)$")) {
+            throw new InvalidInputException(field + " cannot be a Roman numeral only.");
+        }
         // Only fix the casing when everything was typed in one case ("JUAN" or "juan").
         // Mixed case like "McArthur" or "de la Cruz" is kept as the user typed it.
         if (name.equals(name.toUpperCase(Locale.ROOT)) || name.equals(name.toLowerCase(Locale.ROOT))) {
-            return toTitleCase(name);
+            name = toTitleCase(name);
         }
-        return name;
+        return upperCaseSuffix(name);
     }
 
-    /** For optional names like the middle name: empty input is allowed and returns "". */
-    public static String validateOptionalName(String value, String field) throws InvalidInputException {
-        if (value == null || value.trim().isEmpty()) {
-            return "";
+    /** "Jose Rizal iii" or "Jose Rizal Iii" becomes "Jose Rizal III". Only the last word can be a suffix. */
+    private static String upperCaseSuffix(String name) {
+        int lastSpace = name.lastIndexOf(' ');
+        if (lastSpace < 0) {
+            return name;
         }
-        return validateName(value, field);
+        String lastWord = name.substring(lastSpace + 1);
+        if (!ROMAN_SUFFIX.matcher(lastWord).matches()) {
+            return name;
+        }
+        return name.substring(0, lastSpace + 1) + lastWord.toUpperCase(Locale.ROOT);
     }
 
     /** Capitalizes the first letter of each word, e.g. "juan dela cruz" becomes "Juan Dela Cruz". */
@@ -286,11 +307,14 @@ public final class Validator {
 
     public static int parseInt(String value, String field) throws InvalidInputException {
         String text = requireNonEmpty(value, field);
-        try {
-            return Integer.parseInt(text);
-        } catch (NumberFormatException e) {
+        if (text.matches("^0\\d+$")) {
+            throw new InvalidInputException(field + " must not have leading zeros (type " + text.replaceFirst("^0+(?=\\d)", "")
+                    + ", not " + text + ").");
+        }
+        if (!WHOLE_NUMBER.matcher(text).matches()) {
             throw new InvalidInputException(field + " must be a whole number.");
         }
+        return Integer.parseInt(text);
     }
 
     public static int validateRange(int value, int min, int max, String field) throws InvalidInputException {
@@ -300,20 +324,30 @@ public final class Validator {
         return value;
     }
 
-    /** Parses a peso amount. Must be greater than zero, at most the given maximum, with up to 2 decimals. */
+    /**
+     * Parses a peso amount such as 1500, 1,500.50 or \u20B11500. Must be greater than zero, at most the given
+     * maximum, with up to 2 decimals and no leading zeros.
+     */
     public static BigDecimal validateAmount(String value, String field, BigDecimal max) throws InvalidInputException {
-        String text = requireNonEmpty(value, field).replace(",", "").replace("PHP", "").replace("Php", "").trim();
-        BigDecimal amount;
-        try {
-            amount = new BigDecimal(text);
-        } catch (NumberFormatException e) {
-            throw new InvalidInputException(field + " must be a number (e.g. 1500 or 1500.50).");
+        String text = requireNonEmpty(value, field);
+        if (text.startsWith(Format.PESO)) {
+            text = text.substring(Format.PESO.length()).trim();
         }
-        if (amount.signum() <= 0) {
+        if (text.startsWith("-")) {
             throw new InvalidInputException(field + " must be greater than 0.");
         }
-        if (amount.stripTrailingZeros().scale() > 2) {
+        if (text.matches("^0\\d.*")) {
+            throw new InvalidInputException(field + " must not have leading zeros (e.g. 500, not 0500).");
+        }
+        if (text.matches("^[0-9,]*\\.\\d{3,}$")) {
             throw new InvalidInputException(field + " can only have up to 2 decimal places.");
+        }
+        if (!AMOUNT.matcher(text).matches()) {
+            throw new InvalidInputException(field + " must be a peso amount (e.g. 1500, 1,500 or 1500.50).");
+        }
+        BigDecimal amount = new BigDecimal(text.replace(",", ""));
+        if (amount.signum() <= 0) {
+            throw new InvalidInputException(field + " must be greater than 0.");
         }
         if (max != null && amount.compareTo(max) > 0) {
             throw new InvalidInputException(field + " must not exceed " + Format.money(max) + ".");
@@ -322,6 +356,14 @@ public final class Validator {
     }
 
     // ---------------------------------------------------------------- dates and times
+
+    /** Same as parseDate, but "today" can be typed instead of today's date. */
+    public static LocalDate parseDateOrToday(String value, String field) throws InvalidInputException {
+        if (requireNonEmpty(value, field).equalsIgnoreCase("today")) {
+            return LocalDate.now();
+        }
+        return parseDate(value, field);
+    }
 
     public static LocalDate parseDate(String value, String field) throws InvalidInputException {
         String text = requireNonEmpty(value, field);
@@ -382,22 +424,27 @@ public final class Validator {
                 if (range.length != 2) {
                     throw new InvalidInputException("Invalid day range \"" + part + "\". Use a format like MON-FRI.");
                 }
-                DayOfWeek start = toDay(range[0]);
-                DayOfWeek end = toDay(range[1]);
-                if (end.getValue() < start.getValue()) {
-                    throw new InvalidInputException("Day range must go forward within the week (e.g. MON-FRI).");
-                }
-                for (int d = start.getValue(); d <= end.getValue(); d++) {
-                    days.add(DayOfWeek.of(d));
-                }
+                addDayRange(days, toDay(range[0]), toDay(range[1]));
             } else {
-                DayOfWeek day = toDay(part);
-                if (!days.add(day)) {
-                    throw new InvalidInputException(Format.day(day) + " was entered more than once.");
-                }
+                addDay(days, toDay(part));
             }
         }
         return days;
+    }
+
+    private static void addDayRange(Set<DayOfWeek> days, DayOfWeek start, DayOfWeek end) throws InvalidInputException {
+        if (end.getValue() < start.getValue()) {
+            throw new InvalidInputException("Day range must go forward within the week (e.g. MON-FRI).");
+        }
+        for (int d = start.getValue(); d <= end.getValue(); d++) {
+            addDay(days, DayOfWeek.of(d));
+        }
+    }
+
+    private static void addDay(Set<DayOfWeek> days, DayOfWeek day) throws InvalidInputException {
+        if (!days.add(day)) {
+            throw new InvalidInputException(Format.day(day) + " was entered more than once.");
+        }
     }
 
     private static DayOfWeek toDay(String text) throws InvalidInputException {
@@ -416,7 +463,10 @@ public final class Validator {
         String room = requireNonEmpty(value, "Room number").toUpperCase(Locale.ROOT);
         if (room.length() > 10 || !ROOM_NUMBER.matcher(room).matches()) {
             throw new InvalidInputException("Room number must be up to 10 letters/numbers with at most one dash "
-                    + "(e.g. 201 or ICU-01).");
+                    + "(e.g. 201 or ICU-1).");
+        }
+        if (LEADING_ZERO.matcher(room).find()) {
+            throw new InvalidInputException("Room number must not have leading zeros or be 0 (e.g. ICU-1, not ICU-01).");
         }
         return room;
     }

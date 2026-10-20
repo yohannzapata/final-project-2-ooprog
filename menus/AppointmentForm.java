@@ -65,6 +65,7 @@ public final class AppointmentForm {
         }
         Doctor doctor = data.findDoctor(appointment.getDoctorId());
         Patient patient = data.findPatient(appointment.getPatientId());
+        SERVICE.checkNotAdmitted(patient);
         System.out.println("Current schedule: " + Format.date(appointment.getDate()) + " at "
                 + Format.time(appointment.getTime()));
         System.out.println("Schedule of " + doctor.getDisplayName() + ": " + doctor.getScheduleText());
