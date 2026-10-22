@@ -8,6 +8,9 @@ import util.PasswordUtil;
  */
 public abstract class User {
 
+    /** Wrong passwords in a row before the account is locked until the admin resets the password. */
+    public static final int MAX_FAILED_LOGINS = 5;
+
     private final String id;
     private String firstName;
     private String middleName = "";
@@ -16,6 +19,7 @@ public abstract class User {
     private String passwordHash;
     private String salt;
     private boolean mustChangePassword;
+    private int failedLogins;
 
     protected User(String id, String firstName, String lastName, String username, String password) {
         this.id = id;
@@ -119,5 +123,26 @@ public abstract class User {
 
     public void setMustChangePassword(boolean mustChangePassword) {
         this.mustChangePassword = mustChangePassword;
+    }
+
+    public final int getFailedLogins() {
+        return failedLogins;
+    }
+
+    /** Used when loading from file. */
+    public final void setFailedLogins(int failedLogins) {
+        this.failedLogins = Math.max(0, failedLogins);
+    }
+
+    public final void recordFailedLogin() {
+        failedLogins++;
+    }
+
+    public final void clearFailedLogins() {
+        failedLogins = 0;
+    }
+
+    public final boolean isLocked() {
+        return failedLogins >= MAX_FAILED_LOGINS;
     }
 }

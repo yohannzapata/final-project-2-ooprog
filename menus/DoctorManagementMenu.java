@@ -348,6 +348,7 @@ public class DoctorManagementMenu extends Menu {
                 .addRow("Consultation", Format.money(d.getConsultationFee()))
                 .addRow("Schedule", d.getScheduleText())
                 .addRow("Username", d.getUsername())
+                .addRow("Account", PatientForm.accountStatus(d))
                 .print();
     }
 }

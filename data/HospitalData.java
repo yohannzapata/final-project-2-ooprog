@@ -81,10 +81,10 @@ public final class HospitalData {
     }
 
     public void load() {
-        // User files gained a middle name field; files saved before that have one field less.
-        loadFile(ADMINS_FILE, 7, 8, Admin::fromRecord, admins);
-        loadFile(DOCTORS_FILE, 14, 15, Doctor::fromRecord, doctors);
-        loadFile(PATIENTS_FILE, 15, 16, Patient::fromRecord, patients);
+        // User files later gained a middle name and a failed login count; older files have fewer fields.
+        loadFile(ADMINS_FILE, 7, 9, Admin::fromRecord, admins);
+        loadFile(DOCTORS_FILE, 14, 16, Doctor::fromRecord, doctors);
+        loadFile(PATIENTS_FILE, 15, 17, Patient::fromRecord, patients);
         loadFile(APPOINTMENTS_FILE, 8, Appointment::fromRecord, appointments);
         loadFile(RECORDS_FILE, 9, MedicalRecord::fromRecord, medicalRecords);
         loadFile(ROOMS_FILE, 4, Room::fromRecord, rooms);

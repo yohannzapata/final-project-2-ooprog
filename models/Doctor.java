@@ -54,6 +54,9 @@ public class Doctor extends User {
         if (f.length > 14) {
             setMiddleName(f[14]); // older files have no middle name
         }
+        if (f.length > 15) {
+            setFailedLogins(Integer.parseInt(f[15])); // older files have no failed login count
+        }
     }
 
     @Override
@@ -87,7 +90,8 @@ public class Doctor extends User {
         return RecordFormat.join(getId(), getFirstName(), getLastName(), getUsername(),
                 getPasswordHash(), getSalt(), String.valueOf(isMustChangePassword()),
                 specialization, licenseNumber, contactNumber, consultationFee.toPlainString(),
-                days.toString(), startTime.toString(), endTime.toString(), getMiddleName());
+                days.toString(), startTime.toString(), endTime.toString(), getMiddleName(),
+                String.valueOf(getFailedLogins()));
     }
 
     public static Doctor fromRecord(String[] f) {

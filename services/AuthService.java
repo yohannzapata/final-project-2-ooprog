@@ -4,6 +4,7 @@ import data.HospitalData;
 import exceptions.DuplicateRecordException;
 import exceptions.InvalidInputException;
 import exceptions.LoginFailedException;
+import models.Admin;
 import models.Patient;
 import models.User;
 import util.Validator;
@@ -22,12 +23,37 @@ public class AuthService {
         if (username == null || username.trim().isEmpty() || password == null || password.isEmpty()) {
             throw new LoginFailedException("Username and password are required.");
         }
-        Optional<User> user = data.findUserByUsername(username.trim());
+        Optional<User> found = data.findUserByUsername(username.trim());
         // Same message for unknown user and wrong password so usernames cannot be guessed.
-        if (!user.isPresent() || !user.get().checkPassword(password)) {
+        if (!found.isPresent()) {
             throw new LoginFailedException("Incorrect username or password.");
         }
-        return user.get();
+        User user = found.get();
+        if (user.isLocked()) {
+            throw new LoginFailedException(lockedMessage(user), true);
+        }
+        if (!user.checkPassword(password)) {
+            // Counted per account and saved, so starting a new login or restarting the program does not
+            // give unlimited guesses.
+            user.recordFailedLogin();
+            data.save();
+            if (user.isLocked()) {
+                throw new LoginFailedException("Incorrect username or password. " + lockedMessage(user), true);
+            }
+            throw new LoginFailedException("Incorrect username or password.");
+        }
+        if (user.getFailedLogins() > 0) {
+            user.clearFailedLogins();
+            data.save();
+        }
+        return user;
+    }
+
+    private static String lockedMessage(User user) {
+        String unlock = user instanceof Admin
+                ? "Delete hospital_data/admins.txt to restore the default admin account."
+                : "Ask the admin to reset your password.";
+        return "This account is locked after " + User.MAX_FAILED_LOGINS + " wrong passwords in a row. " + unlock;
     }
 
     /** Checks that the username is valid and not used by any admin, doctor or patient. */
@@ -61,13 +87,15 @@ public class AuthService {
     }
 
     /**
-     * Admin reset for a doctor or patient who forgot their password. The new password is temporary,
-     * so the user has to choose their own at the next login, like a newly created account.
+     * Admin reset for a doctor or patient who forgot their password or was locked out, which also unlocks
+     * the account. The new password is temporary, so the user has to choose their own at the next login,
+     * like a newly created account.
      */
     public void resetPassword(User user, String temporaryPassword) throws InvalidInputException {
         Validator.validatePassword(temporaryPassword, user.getUsername());
         user.setPassword(temporaryPassword);
         user.setMustChangePassword(true);
+        user.clearFailedLogins();
         data.save();
     }
 

@@ -62,6 +62,7 @@ public class Main {
         User user = null;
         int attempt = 0;
         boolean isLoggingIn = true;
+        boolean isLocked = false;
         while (isLoggingIn) {
             attempt++;
             // Blank input is asked again and does not use up an attempt.
@@ -71,13 +72,18 @@ public class Main {
                 user = AUTH.login(username, password);
                 isLoggingIn = false;
             } catch (LoginFailedException e) {
-                int left = MAX_LOGIN_ATTEMPTS - attempt;
+                int left = e.isAccountLocked() ? 0 : MAX_LOGIN_ATTEMPTS - attempt;
                 Format.error(e.getMessage() + (left > 0 ? " " + left + " attempt(s) left." : ""));
                 isLoggingIn = left > 0;
+                isLocked = e.isAccountLocked();
             }
         }
         if (user == null) {
-            Format.error("Too many failed attempts. Returning to the main menu.");
+            if (isLocked) {
+                Format.info("Returning to the main menu.");
+            } else {
+                Format.error("Too many failed attempts. Returning to the main menu.");
+            }
             return;
         }
         if (user.isMustChangePassword() && !forcePasswordChange(user)) {

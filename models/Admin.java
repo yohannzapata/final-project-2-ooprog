@@ -29,13 +29,17 @@ public class Admin extends User {
 
     public String toRecord() {
         return RecordFormat.join(getId(), getFirstName(), getLastName(), getUsername(),
-                getPasswordHash(), getSalt(), String.valueOf(isMustChangePassword()), getMiddleName());
+                getPasswordHash(), getSalt(), String.valueOf(isMustChangePassword()), getMiddleName(),
+                String.valueOf(getFailedLogins()));
     }
 
     public static Admin fromRecord(String[] f) {
         Admin admin = new Admin(f[0], f[1], f[2], f[3], f[4], f[5], Boolean.parseBoolean(f[6]));
         if (f.length > 7) {
             admin.setMiddleName(f[7]); // older files have no middle name
+        }
+        if (f.length > 8) {
+            admin.setFailedLogins(Integer.parseInt(f[8])); // older files have no failed login count
         }
         return admin;
     }
