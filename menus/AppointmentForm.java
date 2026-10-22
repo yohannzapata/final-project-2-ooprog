@@ -23,6 +23,8 @@ import java.util.List;
 public final class AppointmentForm {
 
     private static final AppointmentService SERVICE = new AppointmentService();
+    /** How many open dates are listed before the date is asked. */
+    public static final int OPEN_DATES_SHOWN = 5;
 
     private AppointmentForm() {
     }
@@ -34,7 +36,15 @@ public final class AppointmentForm {
             Format.info("There are no doctors in the system yet.");
             return;
         }
-        Doctor doctor = Prompts.chooseDoctor();
+        // A doctor with no free time in the booking window is asked again, instead of a date that can never be found.
+        Doctor doctor = Prompts.chooseDoctor(data.getDoctors(), id -> {
+            Doctor found = data.findDoctor(id);
+            if (SERVICE.getOpenDates(found, 1).isEmpty()) {
+                throw new InvalidInputException(found.getDisplayName() + " has no open times in the next "
+                        + AppointmentService.MAX_DAYS_AHEAD + " days. Choose another doctor.");
+            }
+            return found;
+        });
         System.out.println("Schedule of " + doctor.getDisplayName() + ": " + doctor.getScheduleText());
         System.out.println("Consultation fee: " + Format.money(doctor.getConsultationFee()));
 
@@ -79,7 +89,23 @@ public final class AppointmentForm {
                 + Format.time(time) + ".");
     }
 
-    private static LocalDate readDate(Doctor doctor) {
+    /** Lists the next dates with free times, so the user does not have to guess a date. */
+    private static void printOpenDates(Doctor doctor, List<LocalDate> dates) {
+        System.out.println("Next open dates for " + doctor.getDisplayName() + ":");
+        Table table = new Table("Date", "Day", "Open times").alignRight(2);
+        for (LocalDate date : dates) {
+            table.addRow(date.toString(), Format.day(date.getDayOfWeek()), SERVICE.getAvailableSlots(doctor, date).size());
+        }
+        table.print();
+    }
+
+    private static LocalDate readDate(Doctor doctor) throws InvalidInputException {
+        List<LocalDate> openDates = SERVICE.getOpenDates(doctor, OPEN_DATES_SHOWN);
+        if (openDates.isEmpty()) {
+            throw new InvalidInputException(doctor.getDisplayName() + " has no open times in the next "
+                    + AppointmentService.MAX_DAYS_AHEAD + " days.");
+        }
+        printOpenDates(doctor, openDates);
         return InputHelper.read("Appointment date (yyyy-MM-dd): ", s -> {
             LocalDate date = Validator.parseDate(s, "Appointment date");
             SERVICE.validateDate(doctor, date);

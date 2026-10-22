@@ -47,7 +47,14 @@ public class PatientMenu extends Menu {
             }
         }
         System.out.println("Welcome, " + patient.getFullName() + " (" + patient.getId() + ")");
-        System.out.println("Upcoming appointments: " + getUpcoming().size() + " | Unpaid balance: " + Format.money(balance));
+        List<Appointment> upcoming = getUpcoming();
+        System.out.println("Upcoming appointments: " + upcoming.size() + " | Unpaid balance: " + Format.money(balance));
+        if (!upcoming.isEmpty()) {
+            // The list is sorted by date and time, so the first one is the next visit.
+            Appointment next = upcoming.get(0);
+            System.out.println("Next appointment: " + Format.date(next.getDate()) + " at " + Format.time(next.getTime())
+                    + " with " + data.doctorName(next.getDoctorId()) + " (" + next.getId() + ")");
+        }
         Admission active = admissions.getActiveAdmission(patient.getId());
         if (active != null) {
             Format.info("You are admitted in room " + active.getRoomNumber()
