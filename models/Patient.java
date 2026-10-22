@@ -48,6 +48,9 @@ public class Patient extends User {
         if (f.length > 15) {
             setMiddleName(f[15]); // older files have no middle name
         }
+        if (f.length > 16) {
+            setFailedLogins(Integer.parseInt(f[16])); // older files have no failed login count
+        }
     }
 
     @Override
@@ -84,7 +87,8 @@ public class Patient extends User {
         return RecordFormat.join(getId(), getFirstName(), getLastName(), getUsername(),
                 getPasswordHash(), getSalt(), String.valueOf(isMustChangePassword()),
                 birthdate.toString(), sex, contactNumber, email, address,
-                seniorCitizenId, pwdId, philHealthNumber, getMiddleName());
+                seniorCitizenId, pwdId, philHealthNumber, getMiddleName(),
+                String.valueOf(getFailedLogins()));
     }
 
     public static Patient fromRecord(String[] f) {

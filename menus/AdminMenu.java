@@ -5,6 +5,7 @@ import models.Admission;
 import models.Appointment;
 import models.Bill;
 import models.Room;
+import models.User;
 import services.AdmissionService;
 import services.BillingService;
 import util.Format;
@@ -63,11 +64,26 @@ public class AdminMenu extends Menu {
                 data.getPatients().size(), data.getDoctors().size(), todayAppointments);
         System.out.printf("Admitted: %d | Available rooms: %d of %d | Unpaid bills: %d%n",
                 admitted, availableRooms, data.getRooms().size(), unpaid);
+        int locked = countLocked();
+        if (locked > 0) {
+            Format.info(locked + " account(s) locked after too many wrong passwords. Reset the password under "
+                    + "Manage patients or Manage doctors to unlock.");
+        }
         if (!canManageAppointments() || !canManageAdmissions() || !canManageBills()) {
             Format.info("Appointments, admissions and bills appear here once there are patients, doctors "
                     + "and rooms to work with.");
         }
         System.out.println();
+    }
+
+    private int countLocked() {
+        int locked = 0;
+        for (User user : data.getAllUsers()) {
+            if (user.isLocked() && !(user instanceof Admin)) {
+                locked++;
+            }
+        }
+        return locked;
     }
 
     private boolean canManageAppointments() {

@@ -5,6 +5,7 @@ import exceptions.DuplicateRecordException;
 import exceptions.InvalidInputException;
 import exceptions.OperationCancelledException;
 import models.Patient;
+import models.User;
 import services.AuthService;
 import util.Format;
 import util.InputHelper;
@@ -254,6 +255,13 @@ public final class PatientForm {
                 .addRow("PWD ID", p.getPwdId())
                 .addRow("PhilHealth No.", p.getPhilHealthNumber())
                 .addRow("Username", p.getUsername())
+                .addRow("Account", accountStatus(p))
                 .print();
+    }
+
+    /** Shown on profiles so the admin can see who is locked out. */
+    public static String accountStatus(User user) {
+        return user.isLocked() ? "Locked after " + User.MAX_FAILED_LOGINS + " wrong passwords; reset the password to unlock"
+                : "Active";
     }
 }
