@@ -11,7 +11,7 @@ import java.time.LocalDate;
  * A bill for either a completed appointment (consultation fee) or a discharged
  * admission (daily rate x days). The amount due is computed by a BillingStrategy.
  */
-public class Bill {
+public final class Bill {
 
     public enum Source {
         CONSULTATION("Consultation"),
