@@ -69,7 +69,9 @@ record, and `today` for today's date.
 
 ### Main rules and validations
 
-- **Login:** 3 failed attempts return to the main menu. Changing a password also allows 3 tries of the
+- **Login:** 3 failed attempts return to the main menu. After 5 wrong passwords in a row (counted across
+  logins and restarts) the account is locked until the admin resets its password; the admin sees how many
+  accounts are locked. Changing a password also allows 3 tries of the
   current password. Passwords are stored as salted SHA-256 hashes.
 - **Accounts:** usernames are 4–20 characters and unique; passwords need 8+ characters with an uppercase
   letter, a lowercase letter and a number, and must be typed twice.
@@ -89,15 +91,18 @@ record, and `today` for today's date.
   90 days ahead. No double booking of a doctor, and a patient cannot have two appointments at the same time
   or two with the same doctor on the same day. Admitted patients cannot book until they are discharged.
   Only past appointments can be marked completed/no-show, and past appointments can no longer be cancelled.
-  Times can be typed as `9:00` or `09:00`.
+  Times can be typed as `9:00` or `09:00`. When booking, the next 5 dates with open times are listed before
+  the date is asked, and the patient menu shows the next appointment.
 - **Medical records:** one record per completed appointment, written by the doctor of that appointment.
 - **Rooms and admissions:** only available rooms can be used; a room can only be deleted while it is
   available and has no admission records (set it to Under Maintenance instead), one active admission per patient,
   discharge date cannot be before the admission date, and a backdated admission cannot overlap an earlier
   stay of the same patient or in the same room. Admitted patients cannot book or reschedule appointments. A same-day discharge is billed as 1 day.
 - **Billing:** consultation (fee at time of booking) or admission (daily rate × days). Regular, Senior
-  Citizen (20%), PWD (20%) or PhilHealth (fixed deduction, not more than the bill). Only discounts the
-  patient is eligible for are offered. Paid bills cannot be changed or deleted.
+  Citizen (20%), PWD (20%) or PhilHealth (fixed deduction, not more than the bill). A PhilHealth member
+  with a Senior Citizen or PWD ID can get both: the PhilHealth deduction is taken first and the 20%
+  applies to the rest. Only discounts the patient is eligible for are offered. Paid bills cannot be
+  changed or deleted.
 - **Confirmation:** delete, cancel, discharge and password reset actions ask `Are you sure? (Y/N)`.
   New patients and doctors are shown for review before they are saved.
 
