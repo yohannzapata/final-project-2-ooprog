@@ -110,6 +110,19 @@ public class AppointmentService {
         return slots;
     }
 
+    /** The first dates, from today up to MAX_DAYS_AHEAD, on which the doctor still has a free time. */
+    public List<LocalDate> getOpenDates(Doctor doctor, int limit) {
+        List<LocalDate> dates = new ArrayList<>();
+        LocalDate today = LocalDate.now();
+        for (int i = 0; i <= MAX_DAYS_AHEAD && dates.size() < limit; i++) {
+            LocalDate date = today.plusDays(i);
+            if (doctor.worksOn(date) && !getAvailableSlots(doctor, date).isEmpty()) {
+                dates.add(date);
+            }
+        }
+        return dates;
+    }
+
     private boolean isDoctorBooked(Doctor doctor, LocalDate date, LocalTime time) {
         for (Appointment a : data.getAppointments()) {
             if (a.isScheduled() && a.getDoctorId().equals(doctor.getId()) && a.getDate().equals(date)
