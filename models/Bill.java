@@ -55,7 +55,7 @@ public final class Bill {
         if (isPaid()) {
             throw new IllegalStateException("A paid bill can no longer be changed.");
         }
-        BigDecimal cleanDeduction = type == DiscountType.PHILHEALTH ? deduction : BigDecimal.ZERO;
+        BigDecimal cleanDeduction = type.usesPhilHealth() ? deduction : BigDecimal.ZERO;
         BillingStrategy strategy = type.toStrategy(cleanDeduction);
         this.totalAmount = strategy.computeTotal(grossAmount);
         this.discountType = type;

@@ -1,6 +1,8 @@
 package services;
 
+import billing.BillingStrategy;
 import billing.DiscountType;
+import billing.PhilHealthWithDiscountBilling;
 import data.HospitalData;
 import exceptions.DuplicateRecordException;
 import exceptions.InvalidInputException;
@@ -93,54 +95,56 @@ public class BillingService {
         return admission.getDailyRate().multiply(BigDecimal.valueOf(admission.getDaysStayed()));
     }
 
-    /** Business rules for each discount type. */
+    /** Business rules for each discount type; the combined types must meet both rules. */
     public void checkEligibility(Patient patient, DiscountType type, BigDecimal grossAmount, BigDecimal deduction)
             throws InvalidInputException {
-        switch (type) {
-            case SENIOR_CITIZEN:
-                if (!patient.isSeniorCitizen()) {
-                    throw new InvalidInputException("Senior Citizen discount is only for patients aged 60 and above. "
-                            + patient.getFullName() + " is " + patient.getAge() + ".");
-                }
-                if (!patient.hasSeniorCitizenId()) {
-                    throw new InvalidInputException("No Senior Citizen ID on file. Update the patient record first.");
-                }
-                break;
-            case PWD:
-                if (!patient.hasPwdId()) {
-                    throw new InvalidInputException("No PWD ID on file. Update the patient record first.");
-                }
-                break;
-            case PHILHEALTH:
-                if (!patient.hasPhilHealth()) {
-                    throw new InvalidInputException("No PhilHealth number on file. Update the patient record first.");
-                }
-                if (deduction == null || deduction.signum() <= 0) {
-                    throw new InvalidInputException("PhilHealth deduction must be greater than 0.");
-                }
-                if (deduction.compareTo(grossAmount) > 0) {
-                    throw new InvalidInputException("PhilHealth deduction (" + Format.money(deduction)
-                            + ") cannot be more than the bill (" + Format.money(grossAmount) + ").");
-                }
-                break;
-            case REGULAR:
-            default:
-                break;
+        if (type.usesSeniorDiscount()) {
+            if (!patient.isSeniorCitizen()) {
+                throw new InvalidInputException("Senior Citizen discount is only for patients aged 60 and above. "
+                        + patient.getFullName() + " is " + patient.getAge() + ".");
+            }
+            if (!patient.hasSeniorCitizenId()) {
+                throw new InvalidInputException("No Senior Citizen ID on file. Update the patient record first.");
+            }
+        }
+        if (type.usesPwdDiscount() && !patient.hasPwdId()) {
+            throw new InvalidInputException("No PWD ID on file. Update the patient record first.");
+        }
+        if (type.usesPhilHealth()) {
+            if (!patient.hasPhilHealth()) {
+                throw new InvalidInputException("No PhilHealth number on file. Update the patient record first.");
+            }
+            if (deduction == null || deduction.signum() <= 0) {
+                throw new InvalidInputException("PhilHealth deduction must be greater than 0.");
+            }
+            if (deduction.compareTo(grossAmount) > 0) {
+                throw new InvalidInputException("PhilHealth deduction (" + Format.money(deduction)
+                        + ") cannot be more than the bill (" + Format.money(grossAmount) + ").");
+            }
         }
     }
 
     /** Discount types this patient can actually use, shown to the admin as choices. */
     public List<DiscountType> getEligibleTypes(Patient patient) {
+        boolean senior = patient.isSeniorCitizen() && patient.hasSeniorCitizenId();
+        boolean pwd = patient.hasPwdId();
+        boolean philHealth = patient.hasPhilHealth();
         List<DiscountType> types = new ArrayList<>();
         types.add(DiscountType.REGULAR);
-        if (patient.isSeniorCitizen() && patient.hasSeniorCitizenId()) {
+        if (senior) {
             types.add(DiscountType.SENIOR_CITIZEN);
         }
-        if (patient.hasPwdId()) {
+        if (pwd) {
             types.add(DiscountType.PWD);
         }
-        if (patient.hasPhilHealth()) {
+        if (philHealth) {
             types.add(DiscountType.PHILHEALTH);
+        }
+        if (philHealth && senior) {
+            types.add(DiscountType.PHILHEALTH_SENIOR);
+        }
+        if (philHealth && pwd) {
+            types.add(DiscountType.PHILHEALTH_PWD);
         }
         return types;
     }
@@ -228,11 +232,24 @@ public class BillingService {
         addSourceDetails(table, b);
         table.addSeparator();
         table.addRow("Gross amount", Format.money(b.getGrossAmount()));
-        table.addRow("Less: " + b.getStrategy().getDescription(), "(" + Format.money(b.getDiscountAmount()) + ")");
+        addDiscountLines(table, b);
         table.addSeparator();
         table.addRow("AMOUNT DUE", Format.money(b.getTotalAmount()));
         table.addRow("Status", b.isPaid() ? "Paid on " + Format.date(b.getDatePaid()) : "Unpaid");
         table.print();
+    }
+
+    /** A combined discount is shown as two lines, in the order they are taken off. */
+    private void addDiscountLines(Table table, Bill b) {
+        BillingStrategy strategy = b.getStrategy();
+        if (strategy instanceof PhilHealthWithDiscountBilling) {
+            PhilHealthWithDiscountBilling combined = (PhilHealthWithDiscountBilling) strategy;
+            BigDecimal percentPart = b.getDiscountAmount().subtract(combined.getDeduction());
+            table.addRow("Less: PhilHealth deduction", "(" + Format.money(combined.getDeduction()) + ")");
+            table.addRow("Less: " + combined.getDiscountDescription(), "(" + Format.money(percentPart) + ")");
+        } else {
+            table.addRow("Less: " + strategy.getDescription(), "(" + Format.money(b.getDiscountAmount()) + ")");
+        }
     }
 
     /** The doctor or room line is optional; it is left out if the appointment or admission was removed. */
