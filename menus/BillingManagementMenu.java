@@ -141,7 +141,7 @@ public class BillingManagementMenu extends Menu {
     }
 
     private BigDecimal readDeduction(DiscountType type, BigDecimal gross) {
-        if (type != DiscountType.PHILHEALTH) {
+        if (!type.usesPhilHealth()) {
             return BigDecimal.ZERO;
         }
         return InputHelper.readAmount("PhilHealth deduction (max " + Format.money(gross) + "): ",
