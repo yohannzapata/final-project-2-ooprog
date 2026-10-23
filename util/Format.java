@@ -25,6 +25,11 @@ public final class Format {
     private Format() {
     }
 
+    /** Short reminder printed at the start of long forms, where people may want to cancel halfway. */
+    public static void cancelHint() {
+        System.out.println("(type \"" + InputHelper.CANCEL_WORD + "\" to cancel)");
+    }
+
     public static String money(BigDecimal amount) {
         DecimalFormat df = new DecimalFormat("#,##0.00");
         return PESO + df.format(amount == null ? BigDecimal.ZERO : amount);

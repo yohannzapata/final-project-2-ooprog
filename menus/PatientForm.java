@@ -83,6 +83,9 @@ public final class PatientForm {
 
     private static Details readDetails(boolean byAdmin) throws DuplicateRecordException, InvalidInputException {
         Details d = new Details();
+        if (byAdmin) {
+            Format.cancelHint();
+        }
         System.out.println("Personal information");
         d.firstName = InputHelper.read("First name: ", s -> Validator.validateName(s, "First name"));
         d.middleName = InputHelper.read("Middle name (type \"none\" if none): ",

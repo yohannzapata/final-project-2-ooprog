@@ -69,10 +69,6 @@ public class AdminMenu extends Menu {
             Format.info(locked + " account(s) locked after too many wrong passwords. Reset the password under "
                     + "Manage patients or Manage doctors to unlock.");
         }
-        if (!canManageAppointments() || !canManageAdmissions() || !canManageBills()) {
-            Format.info("Appointments, admissions and bills appear here once there are patients, doctors "
-                    + "and rooms to work with.");
-        }
         System.out.println();
     }
 

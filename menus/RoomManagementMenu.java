@@ -50,6 +50,7 @@ public class RoomManagementMenu extends Menu {
     }
 
     private void addRoom() {
+        Format.cancelHint();
         String number = InputHelper.read("Room number (e.g. 201 or ICU-1): ", s -> checkNewRoomNumber(Validator.validateRoomNumber(s)));
         Room.Type type = readType();
         BigDecimal rate = InputHelper.readAmount("Daily rate (" + Format.PESO + "): ", "Daily rate", MAX_DAILY_RATE);
