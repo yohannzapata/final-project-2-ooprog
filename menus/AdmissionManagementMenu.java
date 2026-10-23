@@ -56,6 +56,7 @@ public class AdmissionManagementMenu extends Menu {
     }
 
     private void admit() throws InvalidInputException, RoomNotAvailableException {
+        Format.cancelHint();
         System.out.println("Patients who can be admitted:");
         Patient patient = Prompts.choosePatient(service.getAdmittablePatients(), id -> {
             Patient found = data.findPatient(id);

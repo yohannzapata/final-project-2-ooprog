@@ -32,6 +32,7 @@ public class Main {
             System.out.println(" 1. Login");
             System.out.println(" 2. Register as a new patient");
             System.out.println(" 0. Exit");
+            System.out.println();
             int choice = InputHelper.readMenuChoice(0, 2);
             try {
                 switch (choice) {
@@ -44,6 +45,7 @@ public class Main {
                     case 0:
                         if (InputHelper.readYesNo("Exit the program?")) {
                             data.save();
+                            System.out.println();
                             System.out.println("Thank you for using the Hospital Management System. Goodbye!");
                             isRunning = false;
                         }
@@ -96,7 +98,7 @@ public class Main {
 
     /** Accounts created by an admin (and the default admin) must set their own password first. */
     private static boolean forcePasswordChange(User user) {
-        Format.info("You are using a temporary password. Please set a new password to continue.");
+        Format.info("Temporary password. Please set a new one.");
         Prompts.printPasswordRules();
         boolean isChanged = false;
         boolean isAsking = true;
@@ -119,7 +121,7 @@ public class Main {
 
     private static void register() {
         Format.subHeader("Patient Registration");
-        System.out.println("Type \"" + InputHelper.CANCEL_WORD + "\" at any prompt to cancel.");
+        Format.cancelHint();
         try {
             Patient patient = PatientForm.create(false);
             Format.success("Registration successful! Your patient ID is " + patient.getId() + ".");

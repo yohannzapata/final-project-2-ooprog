@@ -51,6 +51,7 @@ public class RoomManagementMenu extends Menu {
     }
 
     private void addRoom() {
+        Format.cancelHint();
         String number = readNewRoomNumber();
         Room.Type type = readType();
         BigDecimal rate = InputHelper.readAmount("Daily rate (" + Format.PESO + "): ", "Daily rate", MAX_DAILY_RATE);
