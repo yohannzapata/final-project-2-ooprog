@@ -226,6 +226,6 @@ public final class Prompts {
     }
 
     public static void printPasswordRules() {
-        System.out.println("Password: at least 8 characters with an uppercase letter, a lowercase letter and a number.");
+        System.out.println("Password rules: 8+ characters, with upper, lower and a number.");
     }
 }

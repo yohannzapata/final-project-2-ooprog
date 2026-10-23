@@ -67,6 +67,7 @@ public class DoctorManagementMenu extends Menu {
     }
 
     private void addDoctor() {
+        Format.cancelHint();
         // A typo found during the review is fixed by filling in the details again, before anything is saved.
         Details d = null;
         boolean isConfirmed = false;
