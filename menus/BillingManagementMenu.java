@@ -140,12 +140,30 @@ public class BillingManagementMenu extends Menu {
     /** Only shows the discounts the patient is eligible for, based on age and IDs on file. */
     private DiscountType readDiscountType(Patient patient) {
         List<DiscountType> types = service.getEligibleTypes(patient);
+        printIdsOnFile(patient);
         System.out.println("Discount options for " + patient.getFullName() + " (age " + patient.getAge() + "):");
         for (int i = 0; i < types.size(); i++) {
             System.out.println("  " + (i + 1) + ". " + types.get(i).getOptionText());
         }
         int choice = InputHelper.readInt("Choose discount: ", 1, types.size(), "Discount");
         return types.get(choice - 1);
+    }
+
+    /** The ID numbers behind the discounts, so the admin can check them against the patient's ID cards. */
+    private void printIdsOnFile(Patient patient) {
+        List<String> ids = new ArrayList<>();
+        if (patient.hasSeniorCitizenId()) {
+            ids.add("Senior Citizen ID " + patient.getSeniorCitizenId());
+        }
+        if (patient.hasPwdId()) {
+            ids.add("PWD ID " + patient.getPwdId());
+        }
+        if (patient.hasPhilHealth()) {
+            ids.add("PhilHealth No. " + patient.getPhilHealthNumber());
+        }
+        if (!ids.isEmpty()) {
+            Format.info("On file: " + String.join("; ", ids) + ". Check these against the patient's ID cards.");
+        }
     }
 
     private BigDecimal readDeduction(DiscountType type, BigDecimal gross) {

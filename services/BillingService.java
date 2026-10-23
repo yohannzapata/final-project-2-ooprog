@@ -103,6 +103,10 @@ public class BillingService {
                 throw new InvalidInputException("Senior Citizen discount is only for patients aged 60 and above. "
                         + patient.getFullName() + " is " + patient.getAge() + ".");
             }
+            // Age alone is not proof: a patient can edit their own birthdate, so the ID is required too.
+            if (!patient.hasSeniorCitizenId()) {
+                throw new InvalidInputException("No Senior Citizen ID on file. Update the patient record first.");
+            }
         }
         if (type.usesPwdDiscount() && !patient.hasPwdId()) {
             throw new InvalidInputException("No PWD ID on file. Update the patient record first.");
@@ -120,7 +124,7 @@ public class BillingService {
 
     /** Discount types this patient can actually use, shown to the admin as choices. */
     public List<DiscountType> getEligibleTypes(Patient patient) {
-        boolean senior = patient.isSeniorCitizen();
+        boolean senior = patient.isSeniorCitizen() && patient.hasSeniorCitizenId();
         boolean pwd = patient.hasPwdId();
         boolean philHealth = true; // PhilHealth coverage is a fixed amount entered by the admin
         List<DiscountType> types = new ArrayList<>();
