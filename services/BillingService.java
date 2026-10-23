@@ -103,17 +103,11 @@ public class BillingService {
                 throw new InvalidInputException("Senior Citizen discount is only for patients aged 60 and above. "
                         + patient.getFullName() + " is " + patient.getAge() + ".");
             }
-            if (!patient.hasSeniorCitizenId()) {
-                throw new InvalidInputException("No Senior Citizen ID on file. Update the patient record first.");
-            }
         }
         if (type.usesPwdDiscount() && !patient.hasPwdId()) {
             throw new InvalidInputException("No PWD ID on file. Update the patient record first.");
         }
         if (type.usesPhilHealth()) {
-            if (!patient.hasPhilHealth()) {
-                throw new InvalidInputException("No PhilHealth number on file. Update the patient record first.");
-            }
             if (deduction == null || deduction.signum() <= 0) {
                 throw new InvalidInputException("PhilHealth deduction must be greater than 0.");
             }
@@ -126,9 +120,9 @@ public class BillingService {
 
     /** Discount types this patient can actually use, shown to the admin as choices. */
     public List<DiscountType> getEligibleTypes(Patient patient) {
-        boolean senior = patient.isSeniorCitizen() && patient.hasSeniorCitizenId();
+        boolean senior = patient.isSeniorCitizen();
         boolean pwd = patient.hasPwdId();
-        boolean philHealth = patient.hasPhilHealth();
+        boolean philHealth = true; // PhilHealth coverage is a fixed amount entered by the admin
         List<DiscountType> types = new ArrayList<>();
         types.add(DiscountType.REGULAR);
         if (senior) {

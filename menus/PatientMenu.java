@@ -98,7 +98,6 @@ public class PatientMenu extends Menu {
     }
 
     private void updateProfile() {
-        Format.info("To correct your name, birthdate or sex, please visit the admitting/records section.");
         PatientForm.update(patient, false);
         Format.success("Profile updated.");
     }

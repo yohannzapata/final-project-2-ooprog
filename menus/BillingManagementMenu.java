@@ -127,11 +127,6 @@ public class BillingManagementMenu extends Menu {
     /** Only shows the discounts the patient is eligible for, based on age and IDs on file. */
     private DiscountType readDiscountType(Patient patient) {
         List<DiscountType> types = service.getEligibleTypes(patient);
-        if (types.size() == 1) {
-            Format.info("No Senior Citizen, PWD or PhilHealth ID on file for " + patient.getFullName()
-                    + ", so Regular billing is used.");
-            return types.get(0);
-        }
         System.out.println("Discount options for " + patient.getFullName() + " (age " + patient.getAge() + "):");
         for (int i = 0; i < types.size(); i++) {
             System.out.println("  " + (i + 1) + ". " + types.get(i).getOptionText());
@@ -162,11 +157,6 @@ public class BillingManagementMenu extends Menu {
         Bill bill = selectUnpaidBill();
         Patient patient = data.findPatient(bill.getPatientId());
         System.out.println("Current discount: " + bill.getStrategy().getDescription());
-        if (service.getEligibleTypes(patient).size() == 1) {
-            Format.info(patient.getFullName() + " has no Senior Citizen, PWD or PhilHealth ID on file. "
-                    + "Update the patient record first to apply a discount.");
-            return;
-        }
         DiscountType type = readDiscountType(patient);
         BigDecimal deduction = readDeduction(type, bill.getGrossAmount());
         service.changeDiscount(bill, patient, type, deduction);

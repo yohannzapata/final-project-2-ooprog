@@ -221,24 +221,35 @@ public class DoctorMenu extends Menu {
             }
         }
         appointments.printTable(list, false, false);
-        Format.subHeader("Medical records you wrote");
-        printRecords(getMyRecords(patient.getId()), false, false);
+        Format.subHeader("Medical records");
+        printRecords(getMyRecords(patient.getId()), false, true);
     }
 
     // ---------------------------------------------------------------- medical records
 
+    /** A doctor works with the medical records of their own patients, including records written by other doctors. */
     private MedicalRecord findOwnRecord(String id) throws RecordNotFoundException {
         MedicalRecord r = data.findMedicalRecord(id);
-        if (!r.getDoctorId().equals(doctor.getId())) {
-            throw new RecordNotFoundException("No medical record found with ID " + id + " among your records.");
+        if (!getMyPatientIds().contains(r.getPatientId())) {
+            // Same message as a missing ID so other patients' records are not revealed.
+            throw new RecordNotFoundException("No medical record found with ID " + id + " among your patients' records.");
         }
         return r;
     }
 
+    private Set<String> getMyPatientIds() {
+        Set<String> ids = new LinkedHashSet<>();
+        for (Appointment a : getMyAppointments()) {
+            ids.add(a.getPatientId());
+        }
+        return ids;
+    }
+
     private List<MedicalRecord> getMyRecords(String patientId) {
         List<MedicalRecord> result = new ArrayList<>();
+        Set<String> myPatients = getMyPatientIds();
         for (MedicalRecord r : data.getMedicalRecords()) {
-            if (r.getDoctorId().equals(doctor.getId()) && (patientId == null || r.getPatientId().equals(patientId))) {
+            if (myPatients.contains(r.getPatientId()) && (patientId == null || r.getPatientId().equals(patientId))) {
                 result.add(r);
             }
         }
@@ -309,14 +320,14 @@ public class DoctorMenu extends Menu {
 
     private void viewRecords() {
         List<MedicalRecord> records = getMyRecords(null);
-        printRecords(records, true, false);
+        printRecords(records, true, true);
         if (InputHelper.readYesNo("View full details of a record?")) {
             printRecord(Prompts.select("Enter record ID: ", this::findOwnRecord));
         }
     }
 
     private void updateRecord() {
-        printRecords(getMyRecords(null), true, false);
+        printRecords(getMyRecords(null), true, true);
         MedicalRecord r = Prompts.select("Enter record ID: ", this::findOwnRecord);
         printRecord(r);
         System.out.println("Type \"" + InputHelper.KEEP_WORD + "\" to keep the current value.");
@@ -344,7 +355,7 @@ public class DoctorMenu extends Menu {
     }
 
     private void deleteRecord() {
-        printRecords(getMyRecords(null), true, false);
+        printRecords(getMyRecords(null), true, true);
         MedicalRecord r = Prompts.select("Enter record ID: ", this::findOwnRecord);
         printRecord(r);
         if (!InputHelper.confirm("Delete medical record " + r.getId() + "?")) {
