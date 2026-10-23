@@ -53,7 +53,7 @@ If a doctor or patient forgets their password, the admin can give them a new tem
 
 | Role    | What they can do |
 |---------|------------------|
-| Admin   | Manage patients, doctors, rooms, admissions and bills; reset doctor and patient passwords; view all appointments and book, reschedule or cancel them for patients; apply discounts; mark bills as paid |
+| Admin   | Manage patients, doctors, rooms, admissions and bills; reset doctor and patient passwords; view all appointments and book, reschedule or cancel them for patients; apply discounts; mark bills as paid; view every bill statement with the totals |
 | Doctor  | View today's/upcoming appointments, mark them completed or no-show, view own patients, add medical records and view/update/delete the medical records of their own patients |
 | Patient | Register, update profile (including name, birthdate and sex), view doctors, book/reschedule/cancel own appointments, view own medical records, admissions and bills |
 
@@ -82,8 +82,9 @@ record, and `today` for today's date.
 - **Patients:** first, optional middle and last name,
   birthdate not in the future and age 0–120, PH mobile numbers (`09XXXXXXXXX`, `+63` accepted), optional
   email, Senior Citizen ID (60+ only), PWD ID (`RR-PPMM-BBB-NNNNNNN`) and PhilHealth number (12 digits).
-  The same person (name + birthdate) cannot be registered twice. Patients below 18 cannot create their
-  own account; the admin registers them.
+  The same person (name + birthdate) cannot be registered twice, and each Senior Citizen ID, PWD ID and
+  PhilHealth number belongs to one patient only. Patients below 18 cannot create their own account (or
+  change their own birthdate to one below 18); the admin registers them.
 - **Doctors:** 7-digit PRC license (unique), consultation fee > 0, available days (e.g. `MON-FRI`) and
   clinic hours. A schedule change that would leave booked patients outside the new hours is rejected.
   A doctor with appointments still marked Scheduled cannot be deleted.
@@ -93,7 +94,7 @@ record, and `today` for today's date.
   Only past appointments can be marked completed/no-show, and past appointments can no longer be cancelled.
   Times can be typed as `9:00` or `09:00`. When booking, the next 5 dates with open times are listed before
   the date is asked, and the patient menu shows the next appointment.
-- **Medical records:** one record per completed appointment, written by the doctor of that appointment. A doctor can view, update and delete the records of any patient they have an appointment with.
+- **Medical records:** one record per completed appointment, written by the doctor of that appointment. A doctor can view, update and delete the records of any patient they have a (not cancelled) appointment with; a record changed by another doctor shows who last updated it.
 - **Rooms and admissions:** only available rooms can be used; a room can only be deleted while it is
   available and has no admission records (set it to Under Maintenance instead), one active admission per patient,
   discharge date cannot be before the admission date, and a backdated admission cannot overlap an earlier
@@ -101,8 +102,9 @@ record, and `today` for today's date.
 - **Billing:** consultation (fee at time of booking) or admission (daily rate × days). Regular, Senior
   Citizen (20%), PWD (20%) or PhilHealth (fixed deduction, not more than the bill). A PhilHealth member
   with a Senior Citizen or PWD ID can get both: the PhilHealth deduction is taken first and the 20%
-  applies to the rest. Senior Citizen is offered to patients aged 60 and above, PWD to patients with a PWD ID
-  on file, and PhilHealth to any patient (the admin enters the deduction). Paid bills cannot be
+  applies to the rest. Senior Citizen is offered to patients aged 60 and above with a Senior Citizen ID on file,
+  PWD to patients with a PWD ID on file, and PhilHealth to any patient (the admin enters the deduction).
+  The IDs on file are shown when choosing, so they can be checked against the patient's ID cards. Paid bills cannot be
   changed or deleted.
 - **Confirmation:** delete, cancel, discharge and password reset actions ask `Are you sure? (Y/N)`.
   New patients and doctors are shown for review before they are saved.
