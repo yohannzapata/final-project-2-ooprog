@@ -106,15 +106,16 @@ public final class PatientForm {
         d.address = InputHelper.read("Address (street, barangay, city): ", Validator::validateAddress);
 
         if (age >= Validator.SENIOR_AGE && InputHelper.readYesNo("Do you have a Senior Citizen ID?")) {
-            d.seniorId = InputHelper.read("Senior Citizen ID number: ", Validator::validateSeniorId);
+            d.seniorId = InputHelper.read("Senior Citizen ID number: ",
+                    s -> checkUniqueId(Validator.validateSeniorId(s), null, IdType.SENIOR));
         }
         if (InputHelper.readYesNo("Do you have a PWD ID?")) {
             d.pwdId = InputHelper.read("PWD ID number (RR-PPMM-BBB-NNNNNNN): ",
-                    s -> checkUniqueId(Validator.validatePwdId(s), null, true));
+                    s -> checkUniqueId(Validator.validatePwdId(s), null, IdType.PWD));
         }
         if (InputHelper.readYesNo("Are you a PhilHealth member?")) {
             d.philHealth = InputHelper.read("PhilHealth number (12 digits): ",
-                    s -> checkUniqueId(Validator.validatePhilHealthNumber(s), null, false));
+                    s -> checkUniqueId(Validator.validatePhilHealthNumber(s), null, IdType.PHILHEALTH));
         }
         return d;
     }
@@ -159,7 +160,7 @@ public final class PatientForm {
             String last = InputHelper.readOptional("Last name [" + patient.getLastName() + "]: ",
                     s -> Validator.validateName(s, "Last name"));
             LocalDate birth = InputHelper.readOptional("Birthdate [" + patient.getBirthdate() + "]: ",
-                    s -> Validator.validateBirthdate(Validator.parseDate(s, "Birthdate")));
+                    s -> checkOwnBirthdate(Validator.validateBirthdate(Validator.parseDate(s, "Birthdate")), byAdmin));
             String sex = InputHelper.readOptional("Sex [" + patient.getSex() + "]: ", Validator::validateSex);
 
             newFirst = first == null ? patient.getFirstName() : first;
@@ -187,7 +188,8 @@ public final class PatientForm {
         String senior = null;
         if (seniorAge) {
             senior = InputHelper.readOptional("Senior Citizen ID [" + Format.orDash(patient.getSeniorCitizenId())
-                    + "] (type \"none\" to remove): ", s -> InputHelper.isNone(s) ? "" : Validator.validateSeniorId(s));
+                    + "] (type \"none\" to remove): ",
+                    s -> InputHelper.isNone(s) ? "" : checkUniqueId(Validator.validateSeniorId(s), patient.getId(), IdType.SENIOR));
         } else if (patient.hasSeniorCitizenId()) {
             // Birthdate was corrected and the patient is no longer 60+.
             senior = "";
@@ -195,10 +197,10 @@ public final class PatientForm {
         }
         String pwd = InputHelper.readOptional("PWD ID [" + Format.orDash(patient.getPwdId())
                 + "] (type \"none\" to remove): ",
-                s -> InputHelper.isNone(s) ? "" : checkUniqueId(Validator.validatePwdId(s), patient.getId(), true));
+                s -> InputHelper.isNone(s) ? "" : checkUniqueId(Validator.validatePwdId(s), patient.getId(), IdType.PWD));
         String philHealth = InputHelper.readOptional("PhilHealth number [" + Format.orDash(patient.getPhilHealthNumber())
                 + "] (type \"none\" to remove): ",
-                s -> InputHelper.isNone(s) ? "" : checkUniqueId(Validator.validatePhilHealthNumber(s), patient.getId(), false));
+                s -> InputHelper.isNone(s) ? "" : checkUniqueId(Validator.validatePhilHealthNumber(s), patient.getId(), IdType.PHILHEALTH));
 
         // Apply everything only after all inputs were accepted.
         patient.setFirstName(newFirst);
@@ -227,17 +229,39 @@ public final class PatientForm {
         data.save();
     }
 
-    /** A PWD ID or PhilHealth number belongs to exactly one person. */
-    private static String checkUniqueId(String value, String excludePatientId, boolean pwd)
+    /**
+     * Patients below 18 cannot create their own account, so a patient also cannot change their own birthdate
+     * to one below 18; that would get around the registration rule. The admin can still set any birthdate.
+     */
+    private static LocalDate checkOwnBirthdate(LocalDate birthdate, boolean byAdmin) throws InvalidInputException {
+        if (!byAdmin && Period.between(birthdate, LocalDate.now()).getYears() < ADULT_AGE) {
+            throw new InvalidInputException("Patients below " + ADULT_AGE + " are registered by the admitting section. "
+                    + "Please visit it with a parent or guardian to correct this birthdate.");
+        }
+        return birthdate;
+    }
+
+    /** The discount IDs; each one belongs to exactly one person. */
+    private enum IdType {
+        SENIOR("Senior Citizen ID"), PWD("PWD ID"), PHILHEALTH("PhilHealth number");
+
+        private final String label;
+
+        IdType(String label) {
+            this.label = label;
+        }
+
+        String of(Patient p) {
+            return this == SENIOR ? p.getSeniorCitizenId() : this == PWD ? p.getPwdId() : p.getPhilHealthNumber();
+        }
+    }
+
+    /** A Senior Citizen ID, PWD ID or PhilHealth number belongs to exactly one person. */
+    private static String checkUniqueId(String value, String excludePatientId, IdType type)
             throws InvalidInputException {
         for (Patient p : HospitalData.getInstance().getPatients()) {
-            if (p.getId().equals(excludePatientId)) {
-                continue;
-            }
-            String existing = pwd ? p.getPwdId() : p.getPhilHealthNumber();
-            if (existing.equalsIgnoreCase(value)) {
-                throw new InvalidInputException((pwd ? "PWD ID " : "PhilHealth number ") + value
-                        + " is already registered to another patient.");
+            if (!p.getId().equals(excludePatientId) && type.of(p).equalsIgnoreCase(value)) {
+                throw new InvalidInputException(type.label + " " + value + " is already registered to another patient.");
             }
         }
         return value;
