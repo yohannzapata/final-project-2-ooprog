@@ -86,7 +86,7 @@ public final class HospitalData {
         loadFile(DOCTORS_FILE, 14, 16, Doctor::fromRecord, doctors);
         loadFile(PATIENTS_FILE, 15, 17, Patient::fromRecord, patients);
         loadFile(APPOINTMENTS_FILE, 8, Appointment::fromRecord, appointments);
-        loadFile(RECORDS_FILE, 9, MedicalRecord::fromRecord, medicalRecords);
+        loadFile(RECORDS_FILE, 9, 10, MedicalRecord::fromRecord, medicalRecords);
         loadFile(ROOMS_FILE, 4, Room::fromRecord, rooms);
         loadFile(ADMISSIONS_FILE, 7, Admission::fromRecord, admissions);
         loadFile(BILLS_FILE, 10, Bill::fromRecord, bills);

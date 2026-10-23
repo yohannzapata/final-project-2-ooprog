@@ -69,8 +69,9 @@ public class DoctorMenu extends Menu {
         addIf(options, hasAppointments, "View all my appointments", () -> appointments.printTable(getMyAppointments(), true, false));
         addIf(options, hasDue, "Mark appointment as completed", this::completeAppointment);
         addIf(options, hasDue, "Mark appointment as no-show", this::markNoShow);
-        addIf(options, hasAppointments, "View my patients", () -> PatientManagementMenu.printTable(getMyPatients()));
-        addIf(options, hasAppointments, "View patient details and history", this::viewPatientHistory);
+        boolean hasPatients = !getMyPatients().isEmpty();
+        addIf(options, hasPatients, "View my patients", () -> PatientManagementMenu.printTable(getMyPatients()));
+        addIf(options, hasPatients, "View patient details and history", this::viewPatientHistory);
         addIf(options, !getAppointmentsWithoutRecord().isEmpty(), "Add medical record", this::addRecord);
         addIf(options, hasRecords, "View medical records", this::viewRecords);
         addIf(options, hasRecords, "Update medical record", this::updateRecord);
@@ -188,10 +189,7 @@ public class DoctorMenu extends Menu {
 
     /** Patients who have at least one appointment with this doctor. */
     private List<Patient> getMyPatients() {
-        Set<String> ids = new LinkedHashSet<>();
-        for (Appointment a : getMyAppointments()) {
-            ids.add(a.getPatientId());
-        }
+        Set<String> ids = getMyPatientIds();
         List<Patient> result = new ArrayList<>();
         for (Patient p : data.getPatients()) {
             if (ids.contains(p.getId())) {
@@ -237,10 +235,16 @@ public class DoctorMenu extends Menu {
         return r;
     }
 
+    /**
+     * Patients with an appointment with this doctor that was not cancelled. A cancelled booking alone does
+     * not make someone this doctor's patient, so it does not open their medical records.
+     */
     private Set<String> getMyPatientIds() {
         Set<String> ids = new LinkedHashSet<>();
         for (Appointment a : getMyAppointments()) {
-            ids.add(a.getPatientId());
+            if (a.getStatus() != AppointmentStatus.CANCELLED) {
+                ids.add(a.getPatientId());
+            }
         }
         return ids;
     }
@@ -350,6 +354,8 @@ public class DoctorMenu extends Menu {
         if (notes != null) {
             r.setNotes(notes);
         }
+        // Doctors may update their patients' records written by other doctors, so the editor is kept.
+        r.setUpdatedBy(doctor.getId());
         data.save();
         Format.success("Medical record " + r.getId() + " updated.");
     }
@@ -407,12 +413,13 @@ public class DoctorMenu extends Menu {
         HospitalData data = HospitalData.getInstance();
         Table.details("MEDICAL RECORD " + r.getId())
                 .addRow("Patient", data.patientName(r.getPatientId()) + " (" + r.getPatientId() + ")")
-                .addRow("Doctor", data.doctorName(r.getDoctorId()))
+                .addRow("Written by", data.doctorName(r.getDoctorId()))
                 .addRow("Consultation", Format.date(r.getConsultationDate()) + " (" + r.getAppointmentId() + ")")
                 .addRow("Diagnosis", r.getDiagnosis())
                 .addRow("Prescription", r.getPrescription())
                 .addRow("Notes", r.getNotes())
-                .addRow("Last updated", Format.date(r.getLastUpdated()))
+                .addRow("Last updated", Format.date(r.getLastUpdated()) + (r.getUpdatedBy().isEmpty()
+                        || r.getUpdatedBy().equals(r.getDoctorId()) ? "" : " by " + data.doctorName(r.getUpdatedBy())))
                 .print();
     }
 }
