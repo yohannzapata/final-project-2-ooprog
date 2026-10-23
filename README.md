@@ -54,8 +54,8 @@ If a doctor or patient forgets their password, the admin can give them a new tem
 | Role    | What they can do |
 |---------|------------------|
 | Admin   | Manage patients, doctors, rooms, admissions and bills; reset doctor and patient passwords; view all appointments and book, reschedule or cancel them for patients; apply discounts; mark bills as paid |
-| Doctor  | View today's/upcoming appointments, mark them completed or no-show, view own patients, add/view/update/delete medical records |
-| Patient | Register, update profile, view doctors, book/reschedule/cancel own appointments, view own medical records, admissions and bills |
+| Doctor  | View today's/upcoming appointments, mark them completed or no-show, view own patients, add medical records and view/update/delete the medical records of their own patients |
+| Patient | Register, update profile (including name, birthdate and sex), view doctors, book/reschedule/cancel own appointments, view own medical records, admissions and bills |
 
 Menus only list what can be done right now: for example, "Delete patient" appears once there is a patient
 who can be deleted, and "Manage bills" appears once there is something to bill. Before asking for an ID, the
@@ -93,7 +93,7 @@ record, and `today` for today's date.
   Only past appointments can be marked completed/no-show, and past appointments can no longer be cancelled.
   Times can be typed as `9:00` or `09:00`. When booking, the next 5 dates with open times are listed before
   the date is asked, and the patient menu shows the next appointment.
-- **Medical records:** one record per completed appointment, written by the doctor of that appointment.
+- **Medical records:** one record per completed appointment, written by the doctor of that appointment. A doctor can view, update and delete the records of any patient they have an appointment with.
 - **Rooms and admissions:** only available rooms can be used; a room can only be deleted while it is
   available and has no admission records (set it to Under Maintenance instead), one active admission per patient,
   discharge date cannot be before the admission date, and a backdated admission cannot overlap an earlier
@@ -101,7 +101,8 @@ record, and `today` for today's date.
 - **Billing:** consultation (fee at time of booking) or admission (daily rate × days). Regular, Senior
   Citizen (20%), PWD (20%) or PhilHealth (fixed deduction, not more than the bill). A PhilHealth member
   with a Senior Citizen or PWD ID can get both: the PhilHealth deduction is taken first and the 20%
-  applies to the rest. Only discounts the patient is eligible for are offered. Paid bills cannot be
+  applies to the rest. Senior Citizen is offered to patients aged 60 and above, PWD to patients with a PWD ID
+  on file, and PhilHealth to any patient (the admin enters the deduction). Paid bills cannot be
   changed or deleted.
 - **Confirmation:** delete, cancel, discharge and password reset actions ask `Are you sure? (Y/N)`.
   New patients and doctors are shown for review before they are saved.

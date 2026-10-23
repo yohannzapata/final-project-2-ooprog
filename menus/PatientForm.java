@@ -138,8 +138,8 @@ public final class PatientForm {
     }
 
     /**
-     * Updates contact details. Identity fields (name, birthdate, sex) can only be corrected by an admin,
-     * the same way a hospital records desk would require a valid ID before changing them.
+     * Updates a patient's details. Admins and patients can both change name, birthdate, sex, contact details
+     * and discount IDs; the same person cannot end up on file twice.
      */
     public static void update(Patient patient, boolean byAdmin) {
         HospitalData data = HospitalData.getInstance();
@@ -150,7 +150,7 @@ public final class PatientForm {
         String newLast = patient.getLastName();
         LocalDate newBirth = patient.getBirthdate();
         String newSex = patient.getSex();
-        boolean isIdentityValid = !byAdmin;
+        boolean isIdentityValid = false;
         while (!isIdentityValid) {
             String first = InputHelper.readOptional("First name [" + patient.getFirstName() + "]: ",
                     s -> Validator.validateName(s, "First name"));
