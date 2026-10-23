@@ -1,5 +1,6 @@
 package menus;
 
+import exceptions.DuplicateRecordException;
 import exceptions.InvalidInputException;
 import models.Admission;
 import models.Room;
@@ -50,7 +51,7 @@ public class RoomManagementMenu extends Menu {
     }
 
     private void addRoom() {
-        String number = InputHelper.read("Room number (e.g. 201 or ICU-1): ", s -> checkNewRoomNumber(Validator.validateRoomNumber(s)));
+        String number = readNewRoomNumber();
         Room.Type type = readType();
         BigDecimal rate = InputHelper.readAmount("Daily rate (" + Format.PESO + "): ", "Daily rate", MAX_DAILY_RATE);
         Room room = new Room(number, type, rate);
@@ -59,14 +60,28 @@ public class RoomManagementMenu extends Menu {
         Format.success("Room " + number + " (" + type.getLabel() + ") added.");
     }
 
-    /** Checked while typing, so a taken number is simply asked again. */
-    private String checkNewRoomNumber(String number) throws InvalidInputException {
-        for (Room r : data.getRooms()) {
-            if (r.getRoomNumber().equalsIgnoreCase(number)) {
-                throw new InvalidInputException("Room " + number + " already exists. Enter a different room number.");
+    /** A room number that is already used raises DuplicateRecordException and is asked again. */
+    private String readNewRoomNumber() {
+        String number = "";
+        boolean isAccepted = false;
+        while (!isAccepted) {
+            number = InputHelper.read("Room number (e.g. 201 or ICU-1): ", Validator::validateRoomNumber);
+            try {
+                checkNewRoomNumber(number);
+                isAccepted = true;
+            } catch (DuplicateRecordException e) {
+                Format.error(e.getMessage());
             }
         }
         return number;
+    }
+
+    private void checkNewRoomNumber(String number) throws DuplicateRecordException {
+        for (Room r : data.getRooms()) {
+            if (r.getRoomNumber().equalsIgnoreCase(number)) {
+                throw new DuplicateRecordException("Room " + number + " already exists. Enter a different room number.");
+            }
+        }
     }
 
     private Room.Type readType() {

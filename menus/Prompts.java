@@ -4,6 +4,7 @@ import data.HospitalData;
 import exceptions.DuplicateRecordException;
 import exceptions.InvalidInputException;
 import exceptions.RecordNotFoundException;
+import exceptions.RoomNotAvailableException;
 import models.Doctor;
 import models.Patient;
 import models.User;
@@ -35,11 +36,12 @@ public final class Prompts {
 
     /**
      * Looks up a record by the typed ID. Throws if it does not exist, or InvalidInputException
-     * with the reason if it exists but cannot be used for this action (e.g. a bill that is already paid).
+     * (RoomNotAvailableException for a room) with the reason if it exists but cannot be used for this
+     * action, e.g. a bill that is already paid or a room that is occupied.
      */
     @FunctionalInterface
     public interface Finder<T> {
-        T find(String id) throws RecordNotFoundException, InvalidInputException;
+        T find(String id) throws RecordNotFoundException, InvalidInputException, RoomNotAvailableException;
     }
 
     private Prompts() {
@@ -55,7 +57,7 @@ public final class Prompts {
             try {
                 record = finder.find(id);
                 isFound = true;
-            } catch (RecordNotFoundException | InvalidInputException e) {
+            } catch (RecordNotFoundException | InvalidInputException | RoomNotAvailableException e) {
                 Format.error(e.getMessage());
                 if (!isHintShown) {
                     Format.info("Try again with one from the list, or type \"" + InputHelper.CANCEL_WORD
@@ -108,7 +110,7 @@ public final class Prompts {
                 } else {
                     printNameMatches(noun, candidates, nameOf, printer, input);
                 }
-            } catch (RecordNotFoundException | InvalidInputException e) {
+            } catch (RecordNotFoundException | InvalidInputException | RoomNotAvailableException e) {
                 Format.error(e.getMessage());
                 if (!isHintShown) {
                     Format.info("Try again with one from the list, or type \"" + InputHelper.CANCEL_WORD

@@ -65,12 +65,10 @@ public class AdmissionManagementMenu extends Menu {
 
         System.out.println("Available rooms:");
         RoomManagementMenu.printTable(service.getAvailableRooms());
+        // An occupied room raises RoomNotAvailableException and the room number is asked again.
         Room room = Prompts.select("Enter room number: ", number -> {
             Room found = data.findRoom(number);
-            if (!found.isAvailable()) {
-                throw new InvalidInputException("Room " + found.getRoomNumber() + " is "
-                        + found.getStatus().getLabel().toLowerCase() + ". Please choose an available room.");
-            }
+            service.checkRoomAvailable(found);
             return found;
         });
 
