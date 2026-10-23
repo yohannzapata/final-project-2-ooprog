@@ -246,6 +246,33 @@ public class BillingService {
         }
     }
 
+    /** Totals over a list of bills: what was billed, taken off, collected and still owed. */
+    public void printTotals(List<Bill> bills) {
+        BigDecimal gross = BigDecimal.ZERO;
+        BigDecimal discounts = BigDecimal.ZERO;
+        BigDecimal due = BigDecimal.ZERO;
+        BigDecimal collected = BigDecimal.ZERO;
+        int paidCount = 0;
+        for (Bill b : bills) {
+            gross = gross.add(b.getGrossAmount());
+            discounts = discounts.add(b.getDiscountAmount());
+            due = due.add(b.getTotalAmount());
+            if (b.isPaid()) {
+                collected = collected.add(b.getTotalAmount());
+                paidCount++;
+            }
+        }
+        Table.details("TOTALS FOR ALL BILLS").alignRight(1)
+                .addRow("Bills", bills.size() + " (" + paidCount + " paid, " + (bills.size() - paidCount) + " unpaid)")
+                .addRow("Gross amount", Format.money(gross))
+                .addRow("Less: discounts and PhilHealth", "(" + Format.money(discounts) + ")")
+                .addSeparator()
+                .addRow("Amount due", Format.money(due))
+                .addRow("Collected", Format.money(collected))
+                .addRow("Still unpaid", Format.money(due.subtract(collected)))
+                .print();
+    }
+
     /** The doctor or room line is optional; it is left out if the appointment or admission was removed. */
     private void addSourceDetails(Table table, Bill b) {
         try {

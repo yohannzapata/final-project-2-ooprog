@@ -53,6 +53,7 @@ public class BillingManagementMenu extends Menu {
         addIf(options, hasBills, "View all bills", () -> service.printTable(data.getBills()));
         addIf(options, hasUnpaid, "View unpaid bills", this::viewUnpaid);
         addIf(options, hasBills, "View bill statement", this::viewStatement);
+        addIf(options, hasBills, "View all bill statements", this::viewAllStatements);
         addIf(options, hasUnpaid, "Change discount", this::changeDiscount);
         addIf(options, hasUnpaid, "Mark bill as paid", this::markPaid);
         addIf(options, hasUnpaid, "Delete unpaid bill", this::delete);
@@ -70,6 +71,18 @@ public class BillingManagementMenu extends Menu {
             }
             return found;
         });
+    }
+
+    /** Every bill's full statement, one after another, then the totals of all bills. */
+    private void viewAllStatements() {
+        List<Bill> bills = data.getBills();
+        System.out.println("Statements of all " + bills.size() + " bill(s):");
+        for (Bill b : bills) {
+            System.out.println();
+            service.printStatement(b);
+        }
+        System.out.println();
+        service.printTotals(bills);
     }
 
     private void viewStatement() {
