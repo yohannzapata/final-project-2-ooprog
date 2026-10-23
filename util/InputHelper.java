@@ -7,6 +7,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
+import java.util.InputMismatchException;
 import java.util.NoSuchElementException;
 import java.util.Scanner;
 
@@ -73,7 +74,7 @@ public final class InputHelper {
                 isValid = true;
             } catch (InvalidInputException e) {
                 Format.error(e.getMessage());
-            } catch (NumberFormatException e) {
+            } catch (NumberFormatException | InputMismatchException e) {
                 Format.error("Please enter a valid number.");
             } catch (DateTimeParseException e) {
                 Format.error("Please enter a valid date/time.");
